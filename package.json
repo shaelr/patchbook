@@ -1,0 +1,28 @@
+{
+  "name": "patchbook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
+    "build": "npm run build -w web",
+    "start": "npm run start -w server",
+    "test": "node --test \"shared/src/**/*.test.ts\" \"server/src/**/*.test.ts\"",
+    "typecheck": "tsc -p shared --noEmit && tsc -p server --noEmit && tsc -p web --noEmit",
+    "mac:app": "bash mac/build.sh",
+    "mac:release": "bash mac/release.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "concurrently": "^10.0.5",
+    "typescript": "^7.0.2"
+  }
+}

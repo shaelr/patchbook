@@ -4,28 +4,60 @@ Web app that replaces a per-show Excel sheet for Blackmagic ATEM / Videohub inpu
 
 ## Status
 
-Planning complete. No code yet. Next: Phase 1 project skeleton and model catalog.
+Phases 1–3 done. Reading (Phase 2) and sending (Phase 3) are tested on a real ATEM 4 M/E Constellation 4K: with the user's approval, test names were written to Input 40 and Aux 11 and restored, and the in-app Send → Undo flow was run on Input 40. Writes take under 0.1 s; restoring a factory name makes the ATEM report it as default again. The Videohub side is tested only against stand-ins and Blackmagic's Videohub Server software (no router attached). Next: Videohub hardware test. Pi deployment is on hold at the user's request; don't start it unless asked.
+
+Never write to the user's hardware without asking first, and name the exact ports.
+
+## Commands
+
+Requires Node 24+ (tools live in `/usr/local/bin` on the dev Mac; there is no Homebrew).
+
+- `npm run dev` — server on :3000 (auto-restarts) + Vite on :5173 with `/api` proxied. Open http://localhost:5173.
+- `npm run build` then `npm start` — production: the server serves `web/dist` on :3000.
+- `npm test` — `node --test` over `shared/` and `server/` tests.
+- `npm run typecheck` — TypeScript 7 across all workspaces.
+- `npm run mac:app` — builds the web app and the menu bar app (`mac/build.sh`: `swiftc` + generated icon, ad-hoc signed) and installs **Patchbook.app** in /Applications. The app is the normal way to run Patchbook on the Mac.
+- `npm run mac:release` — self-contained release build (`mac/release.sh`): universal Swift app with a universal Node (official nodejs.org arm64 + x64 builds of the local Node version, cached in `mac/build/node-cache`, joined with `lipo`), `server/src` + `shared/src` (no tests), `web/dist` and production `node_modules` inside `Contents/Resources`, ad-hoc signed, zipped to `mac/build/release/Patchbook-<version>-mac.zip`. Upload that to a GitHub release (`gh release create`). Unsigned: first launch needs System Settings › Privacy & Security › Open Anyway.
+
+Env: `PORT` (3000), `HOST` (0.0.0.0), `PATCHBOOK_DATA` (holds `patchbook.db`; default on macOS `~/Library/Application Support/Patchbook`, elsewhere the project's `data/` folder — see `server/src/dataDir.ts`). On first start on a Mac, a database in the project's `data/` folder is copied over with `VACUUM INTO` and the old file renamed `patchbook.db.moved`. The user's real projects now live in Application Support.
+
+## Layout
+
+- `shared/src/` — zod schema + types (`schema.ts`), model catalog (`catalog.ts`), IP helpers and default role ranges (`ip.ts`), ATEM short-name generation and label checks (`labels.ts`), layout builders (`project.ts`).
+- `server/src/` — Fastify app and routes (`app.ts`), SQLite store with optimistic versioning (`store.ts`), Excel import/export (`xlsx.ts`), entry point (`index.ts`).
+- `mac/` — menu bar app: `Patchbook.swift` (AppKit, no Xcode project), `make-icon.swift`, `build.sh`, `release.sh`. Build output in `mac/build/` (gitignored).
+- `web/src/` — React UI. Hash routes (`router.ts`), autosave hook with conflict handling (`useProject.ts`), pages, one component per tab in `tabs/`.
 
 ## Key decisions
 
 - Browsers can't open raw TCP/UDP, so all hardware control goes through the server.
+- No build step on the server: Node runs `.ts` directly via type stripping. Code must stay erasable (no enums, namespaces, or constructor parameter properties) and imports use `.ts` extensions. `erasableSyntaxOnly` enforces this.
+- Storage is Node's built-in `node:sqlite` (no native modules to compile on the Pi). Each project is one JSON document with a `version`; `PUT` with a stale version returns 409 and the UI asks which copy to keep.
 - One optional ATEM and one optional Videohub per project; they are independent (no routing tracking).
-- ATEM labels have long (20 char) and short (4 char) names; Videohub labels have one name.
-- Network table is device name + IP only, with default IP ranges by role (see PLAN.md).
-- Device connections are on demand: connect, read/write, disconnect. ATEM connection slots are limited and Bitfocus Companion holds one.
+- ATEM ports have a **Name** (20 chars, `long` in code) and a **Label** (4 chars, `short` in code); Videohub ports have a **Label**. The UI, print and Excel use Blackmagic's terms (Name / Label), never "long/short name". `short: null` means the Label is auto-generated from the Name. ATEM outputs are aux outputs only. Multiview outputs are fixed (not nameable on the ATEM), so layouts have no MV rows; `ProjectDataSchema` drops `kind: 'mv'` rows from older saved data on every parse, and the Excel importer skips "MV n" rows.
+- ATEM catalog counts come from Bitfocus Companion's ATEM module model specs. Unknown models use Custom counts; Phase 2 detection will read counts from the device.
+- Verified on a real Constellation 4K: factory names are "Camera n" with Labels CAM1–CAM9 then CM10+, aux outputs "Output n" with Labels OUT1… then OT10+ (two-digit Labels keep the first letter plus the next consonant; `autoShortName` follows this). Blackmagic devices announce themselves over Bonjour (`_switcher_ctrl._udp` for ATEMs, `_blackmagic._tcp` for panels etc.), useful for finding IPs with `dns-sd`.
+- New devices start with factory-style default names (`atemDefaultName` / `videohubDefaultName`): ATEM inputs "Camera n", outputs "Aux n" or "Output n" per model (`outputPrefix` in the catalog, from Companion's specs); Videohub "Input n" / "Output n". ATEM defaults are confirmed on a Constellation 4K; Videohub defaults are still unverified on hardware. Ports still on a default name (`atemPortIsDefault` / `videohubPortIsDefault`) don't count as labeled, aren't printed with "hide unlabeled", and aren't counted as lost on a model change.
+- Changing model keeps real names on ports that still exist, swaps old-model default names for the new model's, gives added ports defaults, and confirms before dropping any named port.
+- Network table is device name + IP only; role is derived from which range the IP falls in. Changing a device's role (after a confirm) moves its IP to the next free address in the new range. ATEM and Videohub IPs live on those devices but appear as rows in the network list. The list is always sorted by IP and grouped by role range, the same way in the Network tab, print view and Excel export: use `networkRows()` / `networkGroups()` from shared. In the Network tab each row's position and group are held while its IP field is focused so rows don't jump mid-edit.
+- Excel import is header-driven: it finds the first row of section titles ("ATEM" / "Video Hub" / "IP" or "Network") that has column headers beneath it (row 1 in the user's template; lower in Patchbook exports, which add a project header). It normalizes leading-zero IPs, only picks a catalog model when exactly one matches the port counts, and turns the device's own row in the network list into the ATEM/Videohub name and IP (found via the hidden `Patchbook` sheet in exports, or a row named exactly "ATEM"/"Videohub" in the template).
+- Excel export keeps the template's side-by-side layout so it re-imports, styled for reading/printing (section bars, banding, frozen headers, landscape fit-to-width page setup, length validation on ATEM labels). Section titles carry the model (`ATEM — <model label>`) and the network section is titled "Network", grouped under merged role header rows (the importer skips merged rows in that section). A very hidden `Patchbook` sheet records which network rows are the ATEM and Videohub so renamed devices round-trip.
+- Touch devices (`(hover: none) and (pointer: coarse)`, or `?touch=1` / `?touch=0` to force) edit table cells through `EditSheet`, a dialog pinned to the top of the visual viewport so the on-screen keyboard can't cover it. Cells become read-only and open the sheet on tap; it uses `flushSync` + `focus()` inside the tap so iOS raises the keyboard. Return/Enter and Done both close it (no row-to-row navigation, by request). Dropdowns use `Select` (`components/Select.tsx`): a native `<select>` on desktop, and on touch a button that opens a large-row picker (groups, ✓ on the current value, optional `detail` text such as a role's IP range). Use it instead of a raw `<select>`. The Network tab holds row order while the sheet is open.
+- Phones (≤560px, `useIsPhone()` in `useMedia.ts`, `.phone-only` / `.desktop-only` classes): one-line title bars with actions behind `ActionMenu` (⋯); ATEM/Videohub show a one-line device summary that opens a `Sheet` with model/name/IP, plus an Inputs | Outputs `Segmented` switch; the Network tab lists devices first, adds via a `+ Add` sheet (stays open for several adds), and collapses IP ranges into a `<details>` row. iPad and desktop layouts are unchanged.
+- Phones (≤560px): no horizontal scrolling anywhere. The network and IP-range tables turn each row into a two-line card via CSS grid areas (cells need their column classes: `name-col`, `ip-col`, `role-col`, `act`, `label-col`, `num-col`), and the tabs share the width.
+- The print view (`#/p/:id/print`) is a light paper sheet on screen and in print; section toggles and "hide unlabeled ports" are remembered per browser in localStorage. Its CSS classes are prefixed `sheet-`; avoid reusing tab class names like `.network`, which carry layout.
+- Device connections are on demand: connect, read (later write), disconnect. ATEM connection slots are limited and Bitfocus Companion holds one. `POST /api/devices/:kind/read {ip}` shares concurrent reads of the same device.
+- Videohub (`server/src/devices/videohub.ts`): Blackmagic Videohub Ethernet Protocol on TCP 9990 (reference: `VideohubEthernetProtocol.pdf`, gitignored). Reads the `VIDEOHUB DEVICE`, `INPUT LABELS` and `OUTPUT LABELS` blocks from the initial dump (ports numbered from 0 in the protocol); newer servers (v2.8) end the dump with `END PRELUDE:`. Blackmagic's Videohub Server runs on the dev Mac at 127.0.0.1:9990 with no router attached; it's a handy real-world check (expect "no router connected").
+- ATEM (`server/src/devices/atem.ts`): `atem-connection` in single-threaded mode over UDP 9910 (reference: `ATEMSwitchersSDKManual.pdf`, gitignored). Physical inputs (internal port type External, ids 1+) and aux outputs (Auxiliary, 8001+) are ATEM "inputs" with longName/shortName and `areNamesDefault`; multiview sources (9001+) are ignored. Model matched by product name, then atem-connection's model id (the 2 M/E and 4 M/E Broadcast Studio 4K share an id). Its native `@julusian/freetype2` dependency isn't needed for what we use.
+- Sending names (Phase 3): `POST /api/devices/:kind/write {ip, ports}` returns a fresh reading. Requests per device are queued (`exclusive` in app.ts) so a write never overlaps a read; simultaneous reads still share one connection. ATEM: `setInputSettings({longName, shortName}, inputId)` (aux = 8000 + n), after `atemWriteProblems` checks Names ≤ 20 UTF-8 bytes (atem-connection writes the Name into a fixed 20-byte field without checking, so a longer one would corrupt the Label) and Labels 1–4 ASCII, and that every port exists; then waits for the state to reflect the names. Videohub: `INPUT LABELS:` / `OUTPUT LABELS:` blocks with zero-based ports, each must get `ACK` (NAK = rejected), then waits for the hub to echo the labels. A blank project Name/label means "not set": the tables show the port's default name greyed as a placeholder, comparisons treat blank as that default (so blank vs a factory-named device is "same"), and a project port that is blank or still on its default shows as "not-set" (never "different") when the device has another name. The write plan (`atemWritePlan` / `videohubWritePlan`) sends only selected "different" ports, so blank/default project names are never sent (they'd overwrite the device's real names); it keeps the device's previous names for Undo (`useDeviceSend`). Blank names are never sent to devices, by the user's choice.
+- Per the ATEM SDK, a Name is up to 20 UTF-8 bytes and may be Unicode; only the 4-character Label must be ASCII (`utf8Length`, `atemLabelIssues`).
+- The compare view (`CompareView.tsx`) is read-only: it shows project vs device per port (same / different / only in project / only on device, plus factory-default tags) and copies device names into the project (selected or all, optionally switching to the device's model). Empty device tabs can be created from a device. After copying names, an `UndoToast` offers Undo for 10 seconds; it restores the device as it was (names and model) and only shows while the device is unchanged since the copy, so it can't discard later edits.
+- Mac menu bar app (`mac/Patchbook.swift`): menu-bar only (`LSUIElement`), starts `node server/src/index.ts` from `Contents/Resources/patchbook` with the bundled `Contents/Resources/node` in a release build, otherwise from the project folder recorded in Info.plist (`PatchbookRoot`) with the system Node with NODE_ENV=production on port 3000, and stops it on quit (`applicationShouldTerminate` → `.terminateLater`). If something already answers on the port it shows "running (started elsewhere)" rather than starting a second server; it records its server's pid in `~/Library/Application Support/Patchbook/` so after a crash/force-quit the next launch adopts that server instead of orphaning it. Menu: status, Open Patchbook (browser), iPad/phone addresses (click to copy), Start/Stop Server, Start at Login (a LaunchAgent plist in ~/Library/LaunchAgents running `open -a`), Show Data Folder, Show Log (`~/Library/Logs/Patchbook.log`, rotated past 5 MB), Quit. `PATCHBOOK_PORT` overrides the port for testing. `/api/health` is polled every 2 s and logs at level silent.
 - Production Pi is separate from the Companion Pi. Server port 3000 (Companion uses 8000).
 
-## Stack
-
-Node.js 24 LTS + TypeScript, Fastify, SQLite, React + Vite, `atem-connection`, `exceljs`.
-
-## Layout
-
-- `server/` — API, storage, device clients (planned)
-- `web/` — React UI (planned)
-- `shared/` — types and the ATEM / Videohub model catalog (planned)
+- Never use the browser's `confirm` / `alert` / `prompt`. Use `confirmDialog` / `alertDialog` / `promptDialog` from `components/Dialogs.tsx` (awaitable; `<DialogHost />` is mounted in `main.tsx`). Give each a title, a short message, and a button that names the action; set `danger` for destructive ones (Cancel gets focus). Open dialogs are dismissed as Cancel when the route changes.
 
 ## Conventions
 
-- The repo is public. Never commit real show files (`.xlsx` in the project root are gitignored); use sanitized fixtures for tests.
+- The repo is public. Never commit real show files (root `*.xlsx` are gitignored); tests build fake workbooks in code.
 - Keep this file up to date when decisions, status, layout, or commands change.
