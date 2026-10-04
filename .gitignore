@@ -1,0 +1,22 @@
+# Real show files (may contain client names and network details)
+/*.xlsx
+~$*.xlsx
+
+# Dependencies and builds
+node_modules/
+dist/
+build/
+
+# Local data
+*.db
+*.db-journal
+data/
+
+# Environment
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
