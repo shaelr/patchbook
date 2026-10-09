@@ -26,6 +26,8 @@ async function templateFixture(): Promise<Buffer> {
   ws.getCell('E3').value = 'Program'
   ws.getCell('D15').value = 'MV 1'
   ws.getCell('D16').value = 'MV 2'
+  ws.getCell('E15').value = 'MV 1' // a multiview's own name, not a note
+  ws.getCell('E16').value = 'FOH confidence'
   const ips: Array<[string, string]> = [
     ['Atem', '10.20.30.10'],
     ['Switcher Panel', '10.20.30.11'],
@@ -46,12 +48,16 @@ describe('xlsx import', () => {
     const { data, warnings } = await importXlsx(await templateFixture(), 'Show')
     const atem = data.atem!
     // 20 in / 12 aux matches both 2 M/E Constellation HD and 4K, so it stays custom.
-    // The template's "MV 1" / "MV 2" rows (fixed multiview outputs) are skipped.
+    // The template's "MV 1" / "MV 2" rows (fixed multiview outputs) become multiview notes.
     assert.equal(atem.model, 'custom')
     assert.equal(atem.inputs.length, 20)
     assert.equal(atem.inputs[0]!.long, 'Camera 1')
     assert.equal(atem.inputs[8]!.long, 'Laptop A')
-    assert.equal(atem.outputs.length, 12, 'MV rows skipped')
+    assert.equal(atem.outputs.length, 12, 'MV rows are not outputs')
+    assert.deepEqual(atem.multiviews, [
+      { n: 1, note: '' },
+      { n: 2, note: 'FOH confidence' },
+    ])
     assert.equal(atem.outputs[0]!.long, 'Program')
     assert.equal(data.videohub, null)
 
@@ -74,6 +80,7 @@ describe('xlsx import', () => {
     const { data } = await importXlsx(await templateFixture(), 'Show')
     data.atem = { ...data.atem!, model: 'constellation-4k-2me' }
     data.atem.inputs[0]!.short = 'C1'
+    data.atem.multiviews[0]!.note = 'Director, 2x2 + PGM/PVW' // longer than a Name may be
     data.videohub = {
       model: 'vh-10x10-12g',
       name: 'Videohub',
@@ -89,6 +96,8 @@ describe('xlsx import', () => {
     assert.equal(back.atem!.model, 'constellation-4k-2me')
     assert.equal(back.atem!.inputs[0]!.short, 'C1')
     assert.equal(back.atem!.inputs[1]!.short, null, 'auto short names stay auto')
+    assert.deepEqual(back.atem!.multiviews, data.atem.multiviews)
+    assert.equal(back.atem!.outputs.length, 12)
     assert.equal(back.videohub!.model, 'vh-10x10-12g')
     assert.equal(back.videohub!.inputs[0]!.label, 'Cam 1 ISO')
     assert.equal(back.videohub!.outputs[9]!.label, 'To ATEM 20')

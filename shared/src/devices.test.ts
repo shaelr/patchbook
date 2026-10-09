@@ -25,7 +25,7 @@ function atemReading(): AtemReading {
   return {
     productName: 'ATEM 1 M/E Constellation 4K',
     model: 'constellation-4k-1me',
-    counts: { inputs: 10, aux: 6 },
+    counts: { inputs: 10, aux: 6, mvs: 1 },
     inputs,
     outputs: [
       ...Array.from({ length: 6 }, (_, i) => ({ kind: 'aux' as const, n: i + 1, long: i === 0 ? 'Program' : `Output ${i + 1}`, short: i === 0 ? 'PGM' : `OUT${i + 1}` })),
@@ -98,6 +98,17 @@ describe('compare with device', () => {
     assert.equal(atem.model, 'constellation-4k-1me')
     assert.equal(atem.ip, '192.168.10.12')
     assert.equal(atem.outputs[0]!.long, 'Program')
+  })
+
+  test('a custom ATEM from a device gets the multiviews the device reports; switching model keeps notes', () => {
+    const atem = atemFromReading({ ...atemReading(), model: 'custom', counts: { inputs: 10, aux: 6, mvs: 2 } }, '192.168.10.12')
+    assert.deepEqual(atem.multiviews, [
+      { n: 1, note: '' },
+      { n: 2, note: '' },
+    ])
+    atem.multiviews[0]!.note = 'Director'
+    const next = applyAtemReading(atem, atemReading(), 'all', true)
+    assert.deepEqual(next.multiviews, [{ n: 1, note: 'Director' }], 'the Constellation 4K 1 M/E has one multiview')
   })
 
   test('Videohub compare and apply', () => {

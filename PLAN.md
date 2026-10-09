@@ -86,6 +86,10 @@ The ATEM and Videohub appear in the network list automatically (their IP is ente
 - From the compare view: send selected differing names → confirm → write → re-read to confirm → Undo for a few seconds.
 - Never sends empty or default project names over real device names; blocks Names the ATEM can't take.
 
+### Done since Phase 3
+- **Multiview notes**: a note per (fixed) multiview output for the patch sheet, in the ATEM tab, print and Excel — not sent to the ATEM.
+- **Connection-limit hint**: an ATEM timeout says the switcher may be out of connection slots (panels, software, Companion).
+
 ### On hold
 - **Deploy to the Pi 4B** (dedicated, not the Companion Pi): Node 24, a service that starts on boot, one-command updates from GitHub, automatic project backups (nightly copy and/or "download all projects"), move existing projects over, fixed IP (suggested .51 in Automation). On hold at the user's request — don't start unless asked.
 
@@ -96,9 +100,7 @@ Bigger features:
 - **Bitfocus Companion**: send source names into Companion button text / custom variables so buttons always match the project.
 
 Smaller ideas that came up along the way:
-- **Multiview notes**: a notes field for what's on each (fixed) multiview output, for patch sheets — not ATEM labels.
 - **Reset device names to factory**: an explicit, off-by-default option when sending, for cleaning up a switcher after a show (blank/default project names are otherwise never sent).
-- **Connection-limit hint**: when an ATEM read times out, mention that the switcher may be out of connection slots (panels, software, Companion).
 - **Videohub hardware check**: confirm factory default labels ("Input n" / "Output n") and read/send on a real router.
 
 ## Stack

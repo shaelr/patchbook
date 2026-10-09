@@ -3,8 +3,8 @@
 //
 // ATEM counts come from Bitfocus Companion's ATEM module model specs
 // (github.com/bitfocus/companion-module-bmd-atem, src/models): external video
-// inputs, aux outputs, and whether outputs are named "Aux" or "Output". Multiview outputs are
-// fixed (not nameable on the ATEM), so they aren't part of a layout.
+// inputs, aux outputs, multiview count (MVs), and whether outputs are named "Aux" or "Output".
+// Multiview outputs are fixed (not nameable on the ATEM); a layout only carries a note per multiview.
 
 export const CUSTOM_MODEL = 'custom'
 
@@ -14,6 +14,8 @@ export interface AtemModel {
   family: string
   inputs: number
   aux: number
+  /** Multiview outputs (0 where the multiview shares the main output). */
+  mvs: number
   /** Default output naming: older switchers call them Aux, Mini/SDI/Constellation call them Output. */
   outputPrefix: 'Aux' | 'Output'
 }
@@ -27,42 +29,42 @@ export interface VideohubModel {
 }
 
 export const ATEM_MODELS: AtemModel[] = [
-  // Mini / SDI — multiview shares the main output, so no dedicated MV rows.
-  { id: 'mini', label: 'ATEM Mini', family: 'Mini & SDI', inputs: 4, aux: 1, outputPrefix: 'Output' },
-  { id: 'mini-pro', label: 'ATEM Mini Pro', family: 'Mini & SDI', inputs: 4, aux: 1, outputPrefix: 'Output' },
-  { id: 'mini-pro-iso', label: 'ATEM Mini Pro ISO', family: 'Mini & SDI', inputs: 4, aux: 1, outputPrefix: 'Output' },
-  { id: 'mini-extreme', label: 'ATEM Mini Extreme', family: 'Mini & SDI', inputs: 8, aux: 2, outputPrefix: 'Output' },
-  { id: 'mini-extreme-iso', label: 'ATEM Mini Extreme ISO', family: 'Mini & SDI', inputs: 8, aux: 2, outputPrefix: 'Output' },
-  { id: 'mini-extreme-iso-g2', label: 'ATEM Mini Extreme ISO G2', family: 'Mini & SDI', inputs: 8, aux: 3, outputPrefix: 'Output' },
-  { id: 'sdi', label: 'ATEM SDI', family: 'Mini & SDI', inputs: 4, aux: 2, outputPrefix: 'Output' },
-  { id: 'sdi-pro-iso', label: 'ATEM SDI Pro ISO', family: 'Mini & SDI', inputs: 4, aux: 2, outputPrefix: 'Output' },
-  { id: 'sdi-extreme-iso', label: 'ATEM SDI Extreme ISO', family: 'Mini & SDI', inputs: 8, aux: 4, outputPrefix: 'Output' },
+  // Mini / SDI — on the Mini and SDI the multiview shares the main output, so no MV rows.
+  { id: 'mini', label: 'ATEM Mini', family: 'Mini & SDI', inputs: 4, aux: 1, mvs: 0, outputPrefix: 'Output' },
+  { id: 'mini-pro', label: 'ATEM Mini Pro', family: 'Mini & SDI', inputs: 4, aux: 1, mvs: 1, outputPrefix: 'Output' },
+  { id: 'mini-pro-iso', label: 'ATEM Mini Pro ISO', family: 'Mini & SDI', inputs: 4, aux: 1, mvs: 1, outputPrefix: 'Output' },
+  { id: 'mini-extreme', label: 'ATEM Mini Extreme', family: 'Mini & SDI', inputs: 8, aux: 2, mvs: 1, outputPrefix: 'Output' },
+  { id: 'mini-extreme-iso', label: 'ATEM Mini Extreme ISO', family: 'Mini & SDI', inputs: 8, aux: 2, mvs: 1, outputPrefix: 'Output' },
+  { id: 'mini-extreme-iso-g2', label: 'ATEM Mini Extreme ISO G2', family: 'Mini & SDI', inputs: 8, aux: 3, mvs: 1, outputPrefix: 'Output' },
+  { id: 'sdi', label: 'ATEM SDI', family: 'Mini & SDI', inputs: 4, aux: 2, mvs: 0, outputPrefix: 'Output' },
+  { id: 'sdi-pro-iso', label: 'ATEM SDI Pro ISO', family: 'Mini & SDI', inputs: 4, aux: 2, mvs: 1, outputPrefix: 'Output' },
+  { id: 'sdi-extreme-iso', label: 'ATEM SDI Extreme ISO', family: 'Mini & SDI', inputs: 8, aux: 4, mvs: 1, outputPrefix: 'Output' },
 
-  { id: 'tvs', label: 'ATEM Television Studio', family: 'Television Studio', inputs: 6, aux: 1, outputPrefix: 'Aux' },
-  { id: 'tvs-hd', label: 'ATEM Television Studio HD', family: 'Television Studio', inputs: 8, aux: 1, outputPrefix: 'Aux' },
-  { id: 'tvs-pro-hd', label: 'ATEM Television Studio Pro HD', family: 'Television Studio', inputs: 8, aux: 1, outputPrefix: 'Aux' },
-  { id: 'tvs-pro-4k', label: 'ATEM Television Studio Pro 4K', family: 'Television Studio', inputs: 8, aux: 1, outputPrefix: 'Aux' },
-  { id: 'tvs-hd8', label: 'ATEM Television Studio HD8', family: 'Television Studio', inputs: 8, aux: 2, outputPrefix: 'Aux' },
-  { id: 'tvs-hd8-iso', label: 'ATEM Television Studio HD8 ISO', family: 'Television Studio', inputs: 8, aux: 2, outputPrefix: 'Aux' },
-  { id: 'tvs-4k8', label: 'ATEM Television Studio 4K8', family: 'Television Studio', inputs: 8, aux: 10, outputPrefix: 'Output' },
+  { id: 'tvs', label: 'ATEM Television Studio', family: 'Television Studio', inputs: 6, aux: 1, mvs: 1, outputPrefix: 'Aux' },
+  { id: 'tvs-hd', label: 'ATEM Television Studio HD', family: 'Television Studio', inputs: 8, aux: 1, mvs: 1, outputPrefix: 'Aux' },
+  { id: 'tvs-pro-hd', label: 'ATEM Television Studio Pro HD', family: 'Television Studio', inputs: 8, aux: 1, mvs: 1, outputPrefix: 'Aux' },
+  { id: 'tvs-pro-4k', label: 'ATEM Television Studio Pro 4K', family: 'Television Studio', inputs: 8, aux: 1, mvs: 1, outputPrefix: 'Aux' },
+  { id: 'tvs-hd8', label: 'ATEM Television Studio HD8', family: 'Television Studio', inputs: 8, aux: 2, mvs: 1, outputPrefix: 'Aux' },
+  { id: 'tvs-hd8-iso', label: 'ATEM Television Studio HD8 ISO', family: 'Television Studio', inputs: 8, aux: 2, mvs: 1, outputPrefix: 'Aux' },
+  { id: 'tvs-4k8', label: 'ATEM Television Studio 4K8', family: 'Television Studio', inputs: 8, aux: 10, mvs: 1, outputPrefix: 'Output' },
 
-  { id: 'ps-4k', label: 'ATEM Production Studio 4K', family: 'Production & Broadcast', inputs: 8, aux: 1, outputPrefix: 'Aux' },
-  { id: '1me', label: 'ATEM 1 M/E Production Switcher', family: 'Production & Broadcast', inputs: 8, aux: 3, outputPrefix: 'Aux' },
-  { id: '1me-4k', label: 'ATEM 1 M/E Production Studio 4K', family: 'Production & Broadcast', inputs: 10, aux: 3, outputPrefix: 'Aux' },
-  { id: '2me', label: 'ATEM 2 M/E Production Switcher', family: 'Production & Broadcast', inputs: 16, aux: 6, outputPrefix: 'Aux' },
-  { id: '2me-4k', label: 'ATEM 2 M/E Production Studio 4K', family: 'Production & Broadcast', inputs: 20, aux: 6, outputPrefix: 'Aux' },
-  { id: '2me-bs-4k', label: 'ATEM 2 M/E Broadcast Studio 4K', family: 'Production & Broadcast', inputs: 20, aux: 6, outputPrefix: 'Aux' },
-  { id: '4me-bs-4k', label: 'ATEM 4 M/E Broadcast Studio 4K', family: 'Production & Broadcast', inputs: 20, aux: 6, outputPrefix: 'Aux' },
+  { id: 'ps-4k', label: 'ATEM Production Studio 4K', family: 'Production & Broadcast', inputs: 8, aux: 1, mvs: 1, outputPrefix: 'Aux' },
+  { id: '1me', label: 'ATEM 1 M/E Production Switcher', family: 'Production & Broadcast', inputs: 8, aux: 3, mvs: 1, outputPrefix: 'Aux' },
+  { id: '1me-4k', label: 'ATEM 1 M/E Production Studio 4K', family: 'Production & Broadcast', inputs: 10, aux: 3, mvs: 1, outputPrefix: 'Aux' },
+  { id: '2me', label: 'ATEM 2 M/E Production Switcher', family: 'Production & Broadcast', inputs: 16, aux: 6, mvs: 2, outputPrefix: 'Aux' },
+  { id: '2me-4k', label: 'ATEM 2 M/E Production Studio 4K', family: 'Production & Broadcast', inputs: 20, aux: 6, mvs: 2, outputPrefix: 'Aux' },
+  { id: '2me-bs-4k', label: 'ATEM 2 M/E Broadcast Studio 4K', family: 'Production & Broadcast', inputs: 20, aux: 6, mvs: 2, outputPrefix: 'Aux' },
+  { id: '4me-bs-4k', label: 'ATEM 4 M/E Broadcast Studio 4K', family: 'Production & Broadcast', inputs: 20, aux: 6, mvs: 2, outputPrefix: 'Aux' },
 
-  { id: 'constellation-hd-1me', label: 'ATEM 1 M/E Constellation HD', family: 'Constellation', inputs: 10, aux: 6, outputPrefix: 'Output' },
-  { id: 'constellation-hd-2me', label: 'ATEM 2 M/E Constellation HD', family: 'Constellation', inputs: 20, aux: 12, outputPrefix: 'Output' },
-  { id: 'constellation-hd-4me', label: 'ATEM 4 M/E Constellation HD', family: 'Constellation', inputs: 40, aux: 24, outputPrefix: 'Output' },
-  { id: 'constellation-4k-1me', label: 'ATEM 1 M/E Constellation 4K', family: 'Constellation', inputs: 10, aux: 6, outputPrefix: 'Output' },
-  { id: 'constellation-4k-2me', label: 'ATEM 2 M/E Constellation 4K', family: 'Constellation', inputs: 20, aux: 12, outputPrefix: 'Output' },
-  { id: 'constellation-4k-4me', label: 'ATEM 4 M/E Constellation 4K', family: 'Constellation', inputs: 40, aux: 24, outputPrefix: 'Output' },
-  { id: 'constellation-4k-4me-plus', label: 'ATEM 4 M/E Constellation 4K Plus', family: 'Constellation', inputs: 80, aux: 48, outputPrefix: 'Output' },
-  { id: 'constellation-8k-hd', label: 'ATEM Constellation 8K (HD/4K mode)', family: 'Constellation', inputs: 40, aux: 24, outputPrefix: 'Output' },
-  { id: 'constellation-8k-8k', label: 'ATEM Constellation 8K (8K mode)', family: 'Constellation', inputs: 10, aux: 6, outputPrefix: 'Output' },
+  { id: 'constellation-hd-1me', label: 'ATEM 1 M/E Constellation HD', family: 'Constellation', inputs: 10, aux: 6, mvs: 1, outputPrefix: 'Output' },
+  { id: 'constellation-hd-2me', label: 'ATEM 2 M/E Constellation HD', family: 'Constellation', inputs: 20, aux: 12, mvs: 2, outputPrefix: 'Output' },
+  { id: 'constellation-hd-4me', label: 'ATEM 4 M/E Constellation HD', family: 'Constellation', inputs: 40, aux: 24, mvs: 4, outputPrefix: 'Output' },
+  { id: 'constellation-4k-1me', label: 'ATEM 1 M/E Constellation 4K', family: 'Constellation', inputs: 10, aux: 6, mvs: 1, outputPrefix: 'Output' },
+  { id: 'constellation-4k-2me', label: 'ATEM 2 M/E Constellation 4K', family: 'Constellation', inputs: 20, aux: 12, mvs: 2, outputPrefix: 'Output' },
+  { id: 'constellation-4k-4me', label: 'ATEM 4 M/E Constellation 4K', family: 'Constellation', inputs: 40, aux: 24, mvs: 4, outputPrefix: 'Output' },
+  { id: 'constellation-4k-4me-plus', label: 'ATEM 4 M/E Constellation 4K Plus', family: 'Constellation', inputs: 80, aux: 48, mvs: 4, outputPrefix: 'Output' },
+  { id: 'constellation-8k-hd', label: 'ATEM Constellation 8K (HD/4K mode)', family: 'Constellation', inputs: 40, aux: 24, mvs: 4, outputPrefix: 'Output' },
+  { id: 'constellation-8k-8k', label: 'ATEM Constellation 8K (8K mode)', family: 'Constellation', inputs: 10, aux: 6, mvs: 1, outputPrefix: 'Output' },
 ]
 
 export const VIDEOHUB_MODELS: VideohubModel[] = [

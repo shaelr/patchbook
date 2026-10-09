@@ -10,6 +10,7 @@ import {
   clearAtemPorts,
   resetAtemPorts,
   droppedAtemNames,
+  droppedMultiviewNotes,
   droppedVideohubLabels,
   inferSubnet,
   ipIssues,
@@ -118,6 +119,7 @@ describe('layouts', () => {
       const atem = buildAtem(model.id, null, null)
       assert.equal(atem.inputs.length, model.inputs, model.id)
       assert.equal(atem.outputs.length, model.aux, model.id)
+      assert.equal(atem.multiviews.length, model.mvs, model.id)
     }
   })
   test('changing model keeps labels on ports that still exist', () => {
@@ -171,15 +173,41 @@ describe('layouts', () => {
     assert.ok(atem.inputs.every((p) => p.long === '' && p.short === null))
     assert.equal(atem.outputs[1]!.long, 'Aux 2', 'outputs untouched')
   })
-  test('older projects with multiview rows load without them', () => {
+  test('older projects with multiview rows load without them; real MV names become notes', () => {
     const data = newProjectData('Old')
-    const raw = JSON.parse(JSON.stringify({ ...data, atem: buildAtem('constellation-4k-1me', null, null) }))
-    raw.atem.outputs.push({ kind: 'mv', n: 1, long: 'MV 1', short: null })
+    const raw = JSON.parse(JSON.stringify({ ...data, atem: buildAtem('constellation-4k-2me', null, null) }))
+    delete raw.atem.multiviews
+    raw.atem.outputs.push({ kind: 'mv', n: 1, long: 'MV 1', short: null }, { kind: 'mv', n: 2, long: 'Director', short: null })
     const parsed = ProjectDataSchema.parse(raw)
-    assert.equal(parsed.atem!.outputs.length, 6)
+    assert.equal(parsed.atem!.outputs.length, 12)
+    assert.deepEqual(parsed.atem!.multiviews, [
+      { n: 1, note: '' },
+      { n: 2, note: 'Director' },
+    ])
+  })
+  test('projects saved before multiview notes get the model\'s multiviews', () => {
+    const raw = JSON.parse(JSON.stringify({ ...newProjectData('Old'), atem: buildAtem('constellation-hd-4me', null, null) }))
+    delete raw.atem.multiviews
+    assert.deepEqual(ProjectDataSchema.parse(raw).atem!.multiviews.map((m) => m.n), [1, 2, 3, 4])
+    const custom = JSON.parse(JSON.stringify({ ...newProjectData('Old'), atem: buildAtem('custom', { inputs: 2, aux: 1, mvs: 0 }, null) }))
+    delete custom.atem.multiviews
+    assert.deepEqual(ProjectDataSchema.parse(custom).atem!.multiviews, [])
+  })
+  test('multiview notes carry over a model change by number; dropped notes are counted', () => {
+    const big = buildAtem('constellation-hd-4me', null, null)
+    big.multiviews[0]!.note = 'Director'
+    big.multiviews[3]!.note = 'FOH'
+    const small = buildAtem('constellation-hd-2me', null, big)
+    assert.deepEqual(small.multiviews, [
+      { n: 1, note: 'Director' },
+      { n: 2, note: '' },
+    ])
+    assert.equal(droppedMultiviewNotes(big, small), 1, 'MV 4 had a note; MV 3 was empty')
+    assert.deepEqual(buildAtem('mini', null, big).multiviews, [], 'the ATEM Mini has no multiview outputs')
   })
   test('custom counts produce a custom layout', () => {
-    const atem = buildAtem('custom', { inputs: 3, aux: 2 }, null)
+    const atem = buildAtem('custom', { inputs: 3, aux: 2, mvs: 1 }, null)
+    assert.equal(atem.multiviews.length, 1)
     assert.equal(atem.model, 'custom')
     assert.deepEqual(
       atem.outputs.map((o) => `${o.kind}${o.n}`),

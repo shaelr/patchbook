@@ -4,7 +4,7 @@ import { after, describe, test } from 'node:test'
 import { Enums } from 'atem-connection'
 import type { VideohubReading } from '@patchbook/shared'
 import { buildApp } from './app.ts'
-import { atemWriteProblems, readingFromState, sendAtemNames } from './devices/atem.ts'
+import { atemTimeoutMessage, atemWriteProblems, readingFromState, sendAtemNames } from './devices/atem.ts'
 import { DeviceError } from './devices/errors.ts'
 import { parseBlocks, readVideohub, writeVideohub } from './devices/videohub.ts'
 import { ProjectStore } from './store.ts'
@@ -111,7 +111,7 @@ describe('ATEM state mapping', () => {
   })
   const state = (productIdentifier: string | undefined, model: Enums.Model) =>
     ({
-      info: { productIdentifier, model },
+      info: { productIdentifier, model, multiviewer: { count: 2, windowCount: 10 } },
       inputs: {
         0: channel(0, Enums.InternalPortType.Black, 'Black', 'BLK'),
         2: channel(2, Enums.InternalPortType.External, 'Lectern', 'LECT'),
@@ -135,7 +135,7 @@ describe('ATEM state mapping', () => {
       { kind: 'aux', n: 1, long: 'Program', short: 'PGM' },
       { kind: 'aux', n: 2, long: 'Output 2', short: 'OUT2' },
     ])
-    assert.deepEqual(reading.counts, { inputs: 2, aux: 2 })
+    assert.deepEqual(reading.counts, { inputs: 2, aux: 2, mvs: 2 })
     assert.deepEqual(reading.factoryDefaults, ['in:1', 'aux:2'])
   })
 
@@ -143,6 +143,13 @@ describe('ATEM state mapping', () => {
     assert.equal(readingFromState(state('ATEM 4 M/E Broadcast Studio 4K', Enums.Model.TwoMEBS4K)).model, '4me-bs-4k')
     assert.equal(readingFromState(state(undefined, Enums.Model.TwoMEBS4K)).model, '2me-bs-4k')
     assert.equal(readingFromState(state('Some Future ATEM', Enums.Model.Unknown)).model, 'custom')
+  })
+
+  test('a timeout names the IP and says the switcher may be out of connection slots', () => {
+    const message = atemTimeoutMessage('192.168.10.10', 8000)
+    assert.match(message, /^No answer from an ATEM at 192\.168\.10\.10 \(timed out after 8s\)/)
+    assert.match(message, /out of connection slots/)
+    assert.match(message, /Companion holds one/)
   })
 })
 

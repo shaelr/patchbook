@@ -116,16 +116,26 @@ export function PrintView({ id }: { id: string }) {
                 })),
               )}
             />
-            <PrintTable
-              title="Outputs"
-              head={['Out', 'Name', 'Label']}
-              rows={filter(
-                data.atem.outputs.map((p) => ({
-                  cells: [atemOutputLabel(p), p.long, p.long ? { chip: resolveShort(p) } : ''],
-                  empty: atemPortIsDefault(data.atem!.model, p),
-                })),
+            <div className="sheet-stack">
+              <PrintTable
+                title="Outputs"
+                head={['Out', 'Name', 'Label']}
+                rows={filter(
+                  data.atem.outputs.map((p) => ({
+                    cells: [atemOutputLabel(p), p.long, p.long ? { chip: resolveShort(p) } : ''],
+                    empty: atemPortIsDefault(data.atem!.model, p),
+                  })),
+                )}
+              />
+              {/* Notes are optional, so with "hide unlabeled" a Multiview table with none is left out. */}
+              {data.atem.multiviews.length > 0 && !(options.hideEmpty && data.atem.multiviews.every((m) => !m.note.trim())) && (
+                <PrintTable
+                  title="Multiview"
+                  head={['MV', 'Note']}
+                  rows={filter(data.atem.multiviews.map((m) => ({ cells: [String(m.n), m.note], empty: !m.note.trim() })))}
+                />
               )}
-            />
+            </div>
           </DeviceSection>
         )}
 

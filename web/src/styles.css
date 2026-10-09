@@ -495,6 +495,12 @@ button.icon {
   align-items: start;
 }
 
+.grid-stack {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
 .label-table {
   width: 100%;
   border-collapse: collapse;
@@ -1651,6 +1657,11 @@ body.print-body {
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   align-items: start;
+}
+.sheet-stack {
+  display: grid;
+  gap: 20px;
+  align-content: start;
 }
 .sheet-table {
   width: 100%;

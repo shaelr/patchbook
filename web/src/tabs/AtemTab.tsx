@@ -15,6 +15,7 @@ import {
   autoShortName,
   buildAtem,
   droppedAtemNames,
+  droppedMultiviewNotes,
   atemPortIsDefault,
   resolveShort,
   ipIssues,
@@ -28,6 +29,7 @@ import {
   type Atem,
   type AtemCounts,
   type AtemInput,
+  type AtemMultiview,
   type AtemOutput,
   type ProjectData,
 } from '@patchbook/shared'
@@ -52,7 +54,8 @@ function atemModelMismatch(atem: Atem, reading: AtemReading): { device: string; 
   const counts = atemCounts(atem)
   const same =
     reading.model === atem.model &&
-    (reading.model !== CUSTOM_MODEL || (counts.inputs === reading.counts.inputs && counts.aux === reading.counts.aux))
+    (reading.model !== CUSTOM_MODEL ||
+      (counts.inputs === reading.counts.inputs && counts.aux === reading.counts.aux && counts.mvs === reading.counts.mvs))
   if (same) return null
   return { device: findAtemModel(reading.model)?.label ?? reading.productName, project: atemModelLabel(atem) }
 }
@@ -60,13 +63,14 @@ function atemModelMismatch(atem: Atem, reading: AtemReading): { device: string; 
 const COUNT_FIELDS = [
   { key: 'inputs' as const, label: 'Inputs', max: 160 },
   { key: 'aux' as const, label: 'Outputs', max: 96 },
+  { key: 'mvs' as const, label: 'Multiviews', max: 16 },
 ]
 
 export function AtemTab({ data, update }: { data: ProjectData; update: ProjectUpdate }) {
   const atem = data.atem
   const phone = useIsPhone()
   // Phones show one list at a time instead of scrolling past every input to reach the outputs.
-  const [side, setSide] = useState<'in' | 'out'>('in')
+  const [side, setSide] = useState<'in' | 'out' | 'mv'>('in')
   const device = useDeviceRead(api.readAtem)
   // After "Use device names": the ATEM before and after, so the copy can be undone. Undo is offered
   // only while the ATEM is still exactly as the copy left it, so it never discards later edits.
@@ -84,11 +88,16 @@ export function AtemTab({ data, update }: { data: ProjectData; update: ProjectUp
   const setModel = async (model: string, counts: AtemCounts) => {
     const next = buildAtem(model, model === CUSTOM_MODEL ? counts : null, atem)
     const dropped = atem ? droppedAtemNames(atem, next) : 0
+    const droppedNotes = atem ? droppedMultiviewNotes(atem, next) : 0
+    const lost = [
+      dropped && `${dropped} name${dropped === 1 ? '' : 's'}`,
+      droppedNotes && `${droppedNotes} multiview note${droppedNotes === 1 ? '' : 's'}`,
+    ].filter(Boolean)
     if (
-      dropped &&
+      lost.length &&
       !(await confirmDialog({
         title: 'Change model?',
-        message: `The new model has fewer ports. ${dropped} name${dropped === 1 ? '' : 's'} you entered will be removed.`,
+        message: `The new model has fewer ports. ${lost.join(' and ')} you entered will be removed.`,
         confirmLabel: 'Change model',
         danger: true,
       }))
@@ -103,7 +112,7 @@ export function AtemTab({ data, update }: { data: ProjectData; update: ProjectUp
         kind="ATEM"
         models={ATEM_MODELS}
         onAdd={(model) => update((d) => (d.atem = buildAtem(model, null, null)))}
-        onCustom={() => update((d) => (d.atem = buildAtem(CUSTOM_MODEL, { inputs: 8, aux: 2 }, null)))}
+        onCustom={() => update((d) => (d.atem = buildAtem(CUSTOM_MODEL, { inputs: 8, aux: 2, mvs: 1 }, null)))}
         onReadDevice={async (ip) => {
           const reading = await api.readAtem(ip)
           update((d) => (d.atem = atemFromReading(reading, ip)))
@@ -111,6 +120,9 @@ export function AtemTab({ data, update }: { data: ProjectData; update: ProjectUp
       />
     )
   }
+
+  // A phone left on Multiview stays there only while the model has multiviews.
+  const shown = side === 'mv' && atem.multiviews.length === 0 ? 'in' : side
 
   return (
     <div className="tab-body">
@@ -177,16 +189,17 @@ export function AtemTab({ data, update }: { data: ProjectData; update: ProjectUp
       {phone && (
         <Segmented
           label="Show"
-          value={side}
+          value={shown}
           onChange={setSide}
           options={[
             { value: 'in', label: 'Inputs', detail: String(atem.inputs.length) },
             { value: 'out', label: 'Outputs', detail: String(atem.outputs.length) },
+            ...(atem.multiviews.length ? [{ value: 'mv' as const, label: 'Multiview', detail: String(atem.multiviews.length) }] : []),
           ]}
         />
       )}
       <div className="grids">
-        {(!phone || side === 'in') && (
+        {(!phone || shown === 'in') && (
           <PortTable
             model={atem.model}
             title="Inputs"
@@ -198,18 +211,24 @@ export function AtemTab({ data, update }: { data: ProjectData; update: ProjectUp
             onClear={() => update((d) => clearAtemPorts(d.atem!.inputs))}
           />
         )}
-        {(!phone || side === 'out') && (
-          <PortTable
-            model={atem.model}
-            title="Outputs"
-            grid="atem-out"
-            ports={atem.outputs}
-            numberLabel={(p) => atemOutputLabel(p as AtemOutput)}
-            onChange={(i, patch) => update((d) => Object.assign(d.atem!.outputs[i]!, patch))}
-            onReset={() => update((d) => resetAtemPorts(d.atem!.model, d.atem!.outputs))}
-            onClear={() => update((d) => clearAtemPorts(d.atem!.outputs))}
-          />
-        )}
+        {/* Multiview notes sit under the outputs, in the same column. */}
+        <div className="grid-stack">
+          {(!phone || shown === 'out') && (
+            <PortTable
+              model={atem.model}
+              title="Outputs"
+              grid="atem-out"
+              ports={atem.outputs}
+              numberLabel={(p) => atemOutputLabel(p as AtemOutput)}
+              onChange={(i, patch) => update((d) => Object.assign(d.atem!.outputs[i]!, patch))}
+              onReset={() => update((d) => resetAtemPorts(d.atem!.model, d.atem!.outputs))}
+              onClear={() => update((d) => clearAtemPorts(d.atem!.outputs))}
+            />
+          )}
+          {(!phone || shown === 'mv') && atem.multiviews.length > 0 && (
+            <MultiviewTable multiviews={atem.multiviews} onChange={(i, note) => update((d) => (d.atem!.multiviews[i]!.note = note))} />
+          )}
+        </div>
       </div>
     </div>
   )
@@ -333,6 +352,74 @@ function PortTable<P extends AtemInput | AtemOutput>({ model, title, grid, ports
               mono: true,
               hint: editing.short === null ? 'Auto-generated. Type to override.' : 'Clear to go back to auto.',
               onChange: (short: string) => onChange(sheet.target!, { short: short === '' ? null : short }),
+            },
+          ]}
+        />
+      )}
+    </section>
+  )
+}
+
+/**
+ * Notes per multiview output for the patch sheet ("Director", "FOH confidence"). Multiviews are
+ * fixed on the ATEM, so these are never read from or sent to it.
+ */
+function MultiviewTable({ multiviews, onChange }: { multiviews: AtemMultiview[]; onChange: (index: number, note: string) => void }) {
+  const noted = multiviews.filter((m) => m.note.trim()).length
+  const sheet = useEditSheet<number>()
+  const touchCell = (i: number) => (sheet.touch ? { readOnly: true, onClick: () => sheet.open(i, 'note') } : {})
+  const contextRow = (m: AtemMultiview | undefined) => m && { num: `MV ${m.n}`, label: m.note || 'No note', unset: !m.note }
+  const editing = sheet.target === null ? undefined : multiviews[sheet.target]
+  return (
+    <section className="card grid-card">
+      <header className="card-head">
+        <h3>Multiview</h3>
+        <span className="muted">
+          {noted} of {multiviews.length} with notes
+        </span>
+      </header>
+      <table className="label-table">
+        <thead>
+          <tr>
+            <th className="num">#</th>
+            <th>
+              Note <span className="muted">(patch sheet only)</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {multiviews.map((m, i) => (
+            <tr key={m.n}>
+              <td className="num mono">MV {m.n}</td>
+              <td>
+                <input
+                  {...cellProps('atem-mv', i, 'note')}
+                  {...touchCell(i)}
+                  value={m.note}
+                  placeholder="Where it goes, layout…"
+                  title="For the patch sheet only: multiviews are fixed on the ATEM, so this isn't sent to it."
+                  onChange={(e) => onChange(i, e.target.value)}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {editing && sheet.target !== null && (
+        <EditSheet
+          ref={sheet.ref}
+          kind="ATEM"
+          title={`Multiview ${editing.n}`}
+          context={{ before: contextRow(multiviews[sheet.target - 1]), after: contextRow(multiviews[sheet.target + 1]) }}
+          onClose={sheet.close}
+          fields={[
+            {
+              key: 'note',
+              label: 'Note',
+              value: editing.note,
+              placeholder: 'Where it goes, layout…',
+              hint: 'For the patch sheet only. Not sent to the ATEM.',
+              onChange: (note) => onChange(sheet.target!, note),
             },
           ]}
         />

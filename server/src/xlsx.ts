@@ -10,6 +10,7 @@ import {
   buildAtem,
   buildVideohub,
   inferSubnet,
+  isMultiviewPlaceholder,
   newId,
   networkGroups,
   newProjectData,
@@ -27,6 +28,8 @@ import {
 //   ATEM (template):   In | Label | … | Out | Label          (Label = the name)
 //   ATEM (export):     In | Name | Label | … | Out | Name | Label
 //                      (Blackmagic's terms: Name = 20-char long name, Label = 4-char short name)
+//                      Below the outputs, "MV 1"… rows hold a note per multiview in the Name
+//                      (or template Label) column.
 //   Video Hub:         In | Label | … | Out | Label
 //   IP / Network:      Equipment | [Location] | IP
 // When a side has a Name column, Label is the 4-character label; otherwise Label is the name.
@@ -118,7 +121,7 @@ function portColumns(headers: Array<[number, string]>): PortColumns {
 }
 
 interface RawPort {
-  kind: 'in' | 'aux'
+  kind: 'in' | 'aux' | 'mv'
   n: number
   label: string
   short: string
@@ -132,8 +135,10 @@ function readPorts(sheet: ExcelJS.Worksheet, cols: PortColumns, firstRow: number
       const id = cellText(sheet, row, numCol)
       const label = labelCol ? cellText(sheet, row, labelCol) : ''
       const short = shortCol ? cellText(sheet, row, shortCol) : ''
-      // Numbered rows only; "MV 1" rows (multiview outputs, fixed on the ATEM) are skipped.
-      if (/^\d+$/.test(id)) ports.push({ kind: isOutput ? 'aux' : 'in', n: Number(id), label, short })
+      // Numbered rows, plus "MV 1" rows among the outputs: multiviews, whose name is a note.
+      const mv = isOutput ? /^mv\s*(\d+)$/i.exec(id) : null
+      if (mv) ports.push({ kind: 'mv', n: Number(mv[1]), label: isMultiviewPlaceholder(label) ? '' : label, short: '' })
+      else if (/^\d+$/.test(id)) ports.push({ kind: isOutput ? 'aux' : 'in', n: Number(id), label, short })
     }
     read(cols.inCol, cols.inLabel, cols.inShort)
     read(cols.outCol, cols.outLabel, cols.outShort, true)
@@ -171,12 +176,19 @@ export async function importXlsx(buffer: Buffer, fallbackName: string): Promise<
 
     if (section === 'atem') {
       const ports = readPorts(sheet, portColumns(headers), firstRow)
-      const counts = { inputs: maxN(ports, 'in'), aux: maxN(ports, 'aux') }
+      const counts = { inputs: maxN(ports, 'in'), aux: maxN(ports, 'aux'), mvs: maxN(ports, 'mv') }
       const model =
         ATEM_MODELS.find((m) => m.label === modelLabel)?.id ??
         uniqueMatch(ATEM_MODELS, (m) => m.inputs === counts.inputs && m.aux === counts.aux)
       const atem = buildAtem(model, counts, null)
+      let lostNotes = 0
       for (const p of ports) {
+        if (p.kind === 'mv') {
+          const mv = atem.multiviews.find((x) => x.n === p.n)
+          if (mv) mv.note = p.label
+          else if (p.label) lostNotes++
+          continue
+        }
         const target =
           p.kind === 'in' ? atem.inputs.find((x) => x.n === p.n) : atem.outputs.find((x) => x.kind === p.kind && x.n === p.n)
         if (!target) continue
@@ -184,6 +196,10 @@ export async function importXlsx(buffer: Buffer, fallbackName: string): Promise<
         target.short = p.short && p.short !== autoShortName(p.label) ? p.short : null
       }
       data.atem = atem
+      if (lostNotes) {
+        const mvs = atem.multiviews.length
+        warnings.push(`${lostNotes} multiview note${lostNotes === 1 ? '' : 's'} skipped: the ${atemModelLabel(atem)} has ${mvs || 'no'} multiview${mvs === 1 ? '' : 's'}.`)
+      }
       if (model === CUSTOM_MODEL) {
         warnings.push(`ATEM model not identified from the sheet ${atemModelLabel(atem).replace('Custom ATEM ', '')}. Choose it on the ATEM tab; labels are kept.`)
       }
@@ -300,6 +316,8 @@ interface Block {
   rows: Array<Array<string | number | null>>
   /** Rows that are group headers: merged across the block, with this text. */
   groupRows?: Map<number, ExcelJS.RichText[]>
+  /** Cells ("row:column") whose text isn't held to the column's max length. */
+  unlimited?: Set<string>
 }
 
 function atemBlocks(data: ProjectData): Block[] {
@@ -310,7 +328,13 @@ function atemBlocks(data: ProjectData): Block[] {
     { header: 'Name', width: 24, kind: 'text', max: ATEM_LONG_MAX },
     { header: 'Label', width: 8, kind: 'short', max: ATEM_SHORT_MAX },
   ]
-  const outputs = atem.outputs
+  // Multiview notes follow the outputs as "MV n" rows (Name = the note, no Label).
+  const outputs: Array<[string | number, string, string]> = [
+    ...atem.outputs.map((o): [number, string, string] => [o.n, o.long, resolveShort(o)]),
+    ...atem.multiviews.map((m): [string, string, string] => [`MV ${m.n}`, m.note, '']),
+  ]
+  const unlimited = new Set<string>()
+  for (let r = atem.outputs.length; r < outputs.length; r++) unlimited.add(`${r}:5`)
   // Inputs and outputs sit side by side under one title, separated by a gap column.
   return [
     {
@@ -319,16 +343,9 @@ function atemBlocks(data: ProjectData): Block[] {
       rows: Array.from({ length: Math.max(atem.inputs.length, outputs.length) }, (_, i) => {
         const inp = atem.inputs[i]
         const out = outputs[i]
-        return [
-          inp?.n ?? null,
-          inp ? inp.long : null,
-          inp ? resolveShort(inp) : null,
-          null,
-          out ? out.n : null,
-          out ? out.long : null,
-          out ? resolveShort(out) : null,
-        ]
+        return [inp?.n ?? null, inp ? inp.long : null, inp ? resolveShort(inp) : null, null, ...(out ?? [null, null, null])]
       }),
+      unlimited,
     },
   ]
 }
@@ -483,7 +500,7 @@ export async function exportXlsx(data: ProjectData): Promise<Buffer> {
         } else if (c.kind === 'ip') {
           cell.font = { name: 'Courier New', size: 10 }
         }
-        if (c.max) {
+        if (c.max && !block.unlimited?.has(`${r}:${i}`)) {
           cell.dataValidation = {
             type: 'textLength',
             operator: 'lessThanOrEqual',

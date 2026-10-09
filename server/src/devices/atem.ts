@@ -5,7 +5,8 @@ import { DeviceError } from './errors.ts'
 // ATEM switchers over the network via atem-connection (UDP 9910). In the ATEM's model (see the
 // ATEM Switchers SDK, IBMDSwitcherInput), physical inputs and aux outputs are both "inputs" with a
 // long name (Name) and short name (Label), told apart by their port type. Multiview outputs are
-// fixed and aren't read (on a Constellation 4K they aren't named sources at all).
+// fixed and aren't read (on a Constellation 4K they aren't named sources at all); only their
+// count is, so a project can hold a note per multiview.
 // We connect only long enough to read (or write) and then disconnect: ATEMs allow few connections.
 
 /** atem-connection model ids → catalog ids, for when the product name isn't in the catalog. */
@@ -69,7 +70,7 @@ export function readingFromState(state: Pick<AtemState, 'info' | 'inputs'>): Ate
   return {
     productName,
     model: matchAtemModel(state.info.productIdentifier, state.info.model),
-    counts: { inputs: inputs.length, aux: aux.length },
+    counts: { inputs: inputs.length, aux: aux.length, mvs: state.info.multiviewer?.count ?? 0 },
     inputs: inputs.map(({ n, long, short }) => ({ n, long, short })),
     outputs: [
       ...aux.map(({ n, long, short }) => ({ kind: 'aux' as const, n, long, short })),
@@ -85,15 +86,25 @@ export interface ReadOptions {
   timeoutMs?: number
 }
 
+/**
+ * Why a connection can time out. A switcher whose connection slots are all taken (panels, ATEM
+ * Software Control, Companion…) doesn't refuse us in a way atem-connection reports: it just never
+ * sends its state, which looks the same as no ATEM at that IP. So the message names both.
+ */
+export function atemTimeoutMessage(host: string, timeoutMs: number): string {
+  return (
+    `No answer from an ATEM at ${host} (timed out after ${timeoutMs / 1000}s). Check the IP and that it's on this network. ` +
+    'If it is, the switcher may be out of connection slots: close ATEM Software Control, panels or other apps connected to it ' +
+    '(Companion holds one) and try again.'
+  )
+}
+
 /** Connect, wait for the ATEM's full state, run `use`, then always disconnect. */
 async function withAtem<T>(host: string, timeoutMs: number, use: (atem: Atem) => Promise<T>): Promise<T> {
   const atem = new Atem({ disableMultithreaded: true })
   try {
     const connected = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new DeviceError('timeout', `No answer from an ATEM at ${host} (timed out after ${timeoutMs / 1000}s). Check the IP and that it's on this network.`)),
-        timeoutMs,
-      )
+      const timer = setTimeout(() => reject(new DeviceError('timeout', atemTimeoutMessage(host, timeoutMs))), timeoutMs)
       atem.once('connected', () => {
         clearTimeout(timer)
         resolve()

@@ -92,6 +92,7 @@ export function networkGroups(
 export interface AtemCounts {
   inputs: number
   aux: number
+  mvs: number
 }
 
 export interface VideohubCounts {
@@ -103,6 +104,7 @@ export function atemCounts(atem: Atem): AtemCounts {
   return {
     inputs: atem.inputs.length,
     aux: atem.outputs.length,
+    mvs: atem.multiviews.length,
   }
 }
 
@@ -141,7 +143,7 @@ export function videohubPortIsDefault(side: 'in' | 'out', p: VideohubPort): bool
 /**
  * Build an ATEM layout for a model (or custom counts). Names carry over from the previous
  * layout wherever the same port still exists; new ports, and ports still on the old model's
- * default names, get this model's defaults.
+ * default names, get this model's defaults. Multiview notes carry over by number.
  */
 export function buildAtem(model: string, custom: AtemCounts | null, prev: Atem | null): Atem {
   const counts = findAtemModel(model) ?? custom
@@ -162,6 +164,7 @@ export function buildAtem(model: string, custom: AtemCounts | null, prev: Atem |
     outputs: [
       ...range(counts.aux).map((n) => ({ kind: 'aux' as const, n, ...name('aux', n) })),
     ],
+    multiviews: range(counts.mvs).map((n) => ({ n, note: prev?.multiviews.find((m) => m.n === n)?.note ?? '' })),
   }
 }
 
@@ -211,6 +214,11 @@ export function droppedAtemNames(prev: Atem, next: Atem): number {
   return [...prev.inputs, ...prev.outputs].filter((p) => !keys.has(`${atemKind(p)}:${p.n}`) && !atemPortIsDefault(prev.model, p)).length
 }
 
+/** Number of multiview notes in `prev` that no longer exist in `next`. */
+export function droppedMultiviewNotes(prev: Atem, next: Atem): number {
+  return prev.multiviews.filter((m) => m.n > next.multiviews.length && m.note.trim() !== '').length
+}
+
 /** Number of labelled Videohub ports (not defaults) in `prev` that no longer exist in `next`. */
 export function droppedVideohubLabels(prev: Videohub, next: Videohub): number {
   const lost = (side: 'in' | 'out', from: VideohubPort[], to: VideohubPort[]) =>
@@ -221,7 +229,7 @@ export function droppedVideohubLabels(prev: Videohub, next: Videohub): number {
 export function atemModelLabel(atem: Atem): string {
   if (atem.model !== CUSTOM_MODEL) return findAtemModel(atem.model)?.label ?? atem.model
   const c = atemCounts(atem)
-  return `Custom ATEM (${c.inputs} in / ${c.aux} out)`
+  return `Custom ATEM (${c.inputs} in / ${c.aux} out${c.mvs ? ` / ${c.mvs} MV` : ''})`
 }
 
 export function videohubModelLabel(hub: Videohub): string {
