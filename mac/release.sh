@@ -56,7 +56,7 @@ for pkg in server shared; do
 done
 cp -R "$ROOT/web/dist" "$STAGE/web/dist"
 # --ignore-scripts: atem-connection's font library ships prebuilt for macOS; don't compile it.
-(cd "$STAGE" && npm install --omit=dev --ignore-scripts --no-audit --no-fund --silent)
+(cd "$STAGE" && npm install --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error)
 rm "$STAGE/package-lock.json"
 # Only the macOS builds of the font library are needed.
 FT="$STAGE/node_modules/@julusian/freetype2"
@@ -76,7 +76,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
-  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>LSMinimumSystemVersion</key><string>13.5</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
 </dict>

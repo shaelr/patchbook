@@ -31,7 +31,7 @@ For development, `npm run dev` runs the server and a live-reloading UI at `http:
 
 ### Mac menu bar app
 
-Download **Patchbook-<version>-mac.zip** from [Releases](https://github.com/shaelr/patchbook/releases), unzip it and move **Patchbook.app** to Applications. It includes everything it needs (no Node.js install required) and runs on Apple silicon and Intel Macs with macOS 13 or later.
+Download **Patchbook-<version>-mac.zip** from [Releases](https://github.com/shaelr/patchbook/releases), unzip it and move **Patchbook.app** to Applications. It includes everything it needs (no Node.js install required) and runs on Apple silicon and Intel Macs with macOS 13.5 or later.
 
 The app isn't signed by an Apple developer account yet, so the first time you open it macOS blocks it: open **System Settings › Privacy & Security**, scroll down and click **Open Anyway** next to the Patchbook message, then confirm.
 

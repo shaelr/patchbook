@@ -10,7 +10,7 @@ Never write to the user's hardware without asking first, and name the exact port
 
 ## Commands
 
-Requires Node 24+ (tools live in `/usr/local/bin` on the dev Mac; there is no Homebrew).
+Requires Node 24+. Development and releases now use Node 26 (on the original dev Mac tools live in `/usr/local/bin`; the newer Mac has Homebrew's Node in `/opt/homebrew/bin`). A release bundles the Node of the Mac that builds it.
 
 - `npm run dev` — server on :3000 (auto-restarts) + Vite on :5173 with `/api` proxied. Open http://localhost:5173.
 - `npm run build` then `npm start` — production: the server serves `web/dist` on :3000.
