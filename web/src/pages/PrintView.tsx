@@ -31,8 +31,8 @@ function loadOptions(): Options {
   }
 }
 
-/** One table cell: plain text, or a short-name chip. */
-type Cell = string | { chip: string }
+/** One table cell: plain text, or a 4-character ATEM Label. */
+type Cell = string | { label: string }
 
 interface Row {
   cells: Cell[]
@@ -93,8 +93,15 @@ export function PrintView({ id }: { id: string }) {
           <div>
             <h1>{data.name}</h1>
             <p className="sheet-meta">
-              Subnet <span className="mono">{data.subnet}</span> · Printed {formatDate(new Date())} · Last edited{' '}
-              {formatDate(new Date(project.updatedAt))}
+              <span>
+                Subnet <strong className="figures">{data.subnet}</strong>
+              </span>
+              <span>
+                Printed <strong>{formatDate(new Date())}</strong>
+              </span>
+              <span>
+                Last edited <strong>{formatDate(new Date(project.updatedAt))}</strong>
+              </span>
             </p>
           </div>
           <div className="sheet-brand">
@@ -105,13 +112,13 @@ export function PrintView({ id }: { id: string }) {
         {data.notes.trim() && <p className="sheet-notes">{data.notes.trim()}</p>}
 
         {data.atem && options.atem && (
-          <DeviceSection kind="ATEM" name={data.atem.name} model={atemModelLabel(data.atem)}>
+          <DeviceSection name={data.atem.name} model={atemModelLabel(data.atem)}>
             <PrintTable
               title="Inputs"
               head={['In', 'Name', 'Label']}
               rows={filter(
                 data.atem.inputs.map((p) => ({
-                  cells: [String(p.n), p.long, p.long ? { chip: resolveShort(p) } : ''],
+                  cells: [String(p.n), p.long, p.long ? { label: resolveShort(p) } : ''],
                   empty: atemPortIsDefault(data.atem!.model, p),
                 })),
               )}
@@ -122,7 +129,7 @@ export function PrintView({ id }: { id: string }) {
                 head={['Out', 'Name', 'Label']}
                 rows={filter(
                   data.atem.outputs.map((p) => ({
-                    cells: [atemOutputLabel(p), p.long, p.long ? { chip: resolveShort(p) } : ''],
+                    cells: [atemOutputLabel(p), p.long, p.long ? { label: resolveShort(p) } : ''],
                     empty: atemPortIsDefault(data.atem!.model, p),
                   })),
                 )}
@@ -140,7 +147,7 @@ export function PrintView({ id }: { id: string }) {
         )}
 
         {data.videohub && options.videohub && (
-          <DeviceSection kind="Videohub" name={data.videohub.name} model={videohubModelLabel(data.videohub)}>
+          <DeviceSection name={data.videohub.name} model={videohubModelLabel(data.videohub)}>
             <PrintTable
               title="Inputs"
               head={['In', 'Label']}
@@ -173,11 +180,11 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   )
 }
 
-function DeviceSection(props: { kind: string; name: string; model: string; children: React.ReactNode }) {
+/** The model label says what the device is ("ATEM 2 M/E…", "Smart Videohub…"), so there's no separate kind tag. */
+function DeviceSection(props: { name: string; model: string; children: React.ReactNode }) {
   return (
     <section className="sheet-section">
       <header className="section-head">
-        <span className="section-kind">{props.kind}</span>
         <h2>{props.name}</h2>
         <span className="section-model">{props.model}</span>
       </header>
@@ -193,7 +200,7 @@ function PrintTable({ title, head, rows }: { title: string; head: string[]; rows
       <thead>
         <tr>
           {head.map((h, i) => (
-            <th key={h} className={i === 0 ? 'num' : i === 2 ? 'chip-col' : undefined}>
+            <th key={h} className={i === 0 ? 'num' : i === 2 ? 'sheet-label-col' : undefined}>
               {h}
             </th>
           ))}
@@ -210,8 +217,8 @@ function PrintTable({ title, head, rows }: { title: string; head: string[]; rows
         {rows.map((r, i) => (
           <tr key={i}>
             {r.cells.map((c, j) => (
-              <td key={j} className={j === 0 ? 'num mono' : j === 2 ? 'chip-col' : undefined}>
-                {typeof c === 'string' ? c : <span className="chip mono">{c.chip}</span>}
+              <td key={j} className={j === 0 ? 'num figures' : j === 2 ? 'sheet-label-col' : undefined}>
+                {typeof c === 'string' ? c : <span className="sheet-label">{c.label}</span>}
               </td>
             ))}
           </tr>
@@ -230,8 +237,7 @@ function NetworkSection({ data }: { data: ProjectData }) {
   return (
     <section className="sheet-section">
       <header className="section-head">
-        <span className="section-kind">Network</span>
-        <h2>Devices &amp; IP addresses</h2>
+        <h2>Network</h2>
         <span className="section-model">
           {rows.length} device{rows.length === 1 ? '' : 's'}
         </span>
@@ -248,7 +254,7 @@ function NetworkSection({ data }: { data: ProjectData }) {
             <tr className="group">
               <th colSpan={2}>
                 {g.label}
-                {g.span && <span className="mono"> {g.span}</span>}
+                {g.span && <span className="figures"> {g.span}</span>}
               </th>
             </tr>
             {g.rows.map((r) => (
@@ -257,7 +263,7 @@ function NetworkSection({ data }: { data: ProjectData }) {
                     {r.name}
                     {r.device && <span className="tag">{r.device === 'atem' ? 'ATEM' : 'Videohub'}</span>}
                   </td>
-                  <td className="ip mono">{r.ip || '—'}</td>
+                  <td className="ip figures">{r.ip || '—'}</td>
                 </tr>
             ))}
           </tbody>

@@ -237,7 +237,7 @@ function PortTable({ side, title, grid, ports, onChange, onReset, onClear }: Por
         <tbody>
           {ports.map((p, i) => (
             <tr key={p.n}>
-              <td className="num mono">{p.n}</td>
+              <td className="num figures">{p.n}</td>
               <td>
                 <input
                   {...cellProps(grid, i, 'label')}

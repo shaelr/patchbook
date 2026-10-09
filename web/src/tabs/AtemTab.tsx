@@ -290,7 +290,7 @@ function PortTable<P extends AtemInput | AtemOutput>({ model, title, grid, ports
             const issues = atemLabelIssues(p)
             return (
               <tr key={numberLabel(p)}>
-                <td className="num mono">{numberLabel(p)}</td>
+                <td className="num figures">{numberLabel(p)}</td>
                 <td>
                   <input
                     {...cellProps(grid, i, 'long')}
@@ -310,7 +310,7 @@ function PortTable<P extends AtemInput | AtemOutput>({ model, title, grid, ports
                   <input
                     {...cellProps(grid, i, 'short')}
                     {...touchCell(i, 'short')}
-                    className={`mono ${p.short === null ? 'is-auto' : ''} ${issues.includes('short-too-long') ? 'is-error' : ''}`}
+                    className={`figures ${p.short === null ? 'is-auto' : ''} ${issues.includes('short-too-long') ? 'is-error' : ''}`}
                     value={p.short ?? ''}
                     placeholder={autoShortName(p.long || defaultOf(p))}
                     maxLength={Math.max(ATEM_SHORT_MAX, p.short?.length ?? 0)}
@@ -349,7 +349,7 @@ function PortTable<P extends AtemInput | AtemOutput>({ model, title, grid, ports
               value: editing.short ?? '',
               placeholder: autoShortName(editing.long || defaultOf(editing)),
               max: ATEM_SHORT_MAX,
-              mono: true,
+              figures: true,
               hint: editing.short === null ? 'Auto-generated. Type to override.' : 'Clear to go back to auto.',
               onChange: (short: string) => onChange(sheet.target!, { short: short === '' ? null : short }),
             },
@@ -390,7 +390,7 @@ function MultiviewTable({ multiviews, onChange }: { multiviews: AtemMultiview[];
         <tbody>
           {multiviews.map((m, i) => (
             <tr key={m.n}>
-              <td className="num mono">MV {m.n}</td>
+              <td className="num figures">MV {m.n}</td>
               <td>
                 <input
                   {...cellProps('atem-mv', i, 'note')}

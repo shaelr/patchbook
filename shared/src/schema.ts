@@ -124,4 +124,5 @@ export interface ProjectSummary {
   atemModel: string | null
   videohubModel: string | null
   networkCount: number
+  subnet: string
 }

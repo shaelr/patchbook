@@ -16,7 +16,7 @@ export function IpField({ value, issues, onChange, inputProps, placeholder = 'â€
   return (
     <div className="ip-field">
       <input
-        className={`mono ${severe ? 'is-error' : issues.length ? 'is-warn' : ''}`}
+        className={`figures ${severe ? 'is-error' : issues.length ? 'is-warn' : ''}`}
         value={value}
         placeholder={placeholder}
         inputMode="decimal"

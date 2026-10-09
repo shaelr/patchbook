@@ -69,7 +69,7 @@ export function DeviceHeader<K extends string>(props: Props<K>) {
         <div className="device-summary-text">
           <strong>{props.modelLabel}</strong>
           <span className="muted">
-            {props.name || props.kind} · <span className="mono">{props.ip || 'No IP'}</span>
+            {props.name || props.kind} · <span className="figures">{props.ip || 'No IP'}</span>
             {props.ipIssues.length > 0 && <span className="badge">!</span>}
           </span>
         </div>

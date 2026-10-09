@@ -46,7 +46,7 @@ export interface SheetField {
   placeholder?: string
   /** Shows a character counter and flags the field when over. */
   max?: number
-  mono?: boolean
+  figures?: boolean
   inputMode?: 'text' | 'decimal'
   hint?: string
   note?: ReactNode
@@ -133,7 +133,7 @@ export const EditSheet = forwardRef<EditSheetHandle, Props>(function EditSheet(
                     if (el) inputs.current.set(f.key, el)
                     else inputs.current.delete(f.key)
                   }}
-                  className={`${f.mono ? 'mono' : ''} ${over || f.error ? 'is-error' : ''}`}
+                  className={`${f.figures ? 'figures' : ''} ${over || f.error ? 'is-error' : ''}`}
                   value={f.value}
                   placeholder={f.placeholder}
                   inputMode={f.inputMode}
@@ -167,9 +167,9 @@ function ContextLine({ row, arrow, edge }: { row: ContextRow | undefined; arrow:
   return (
     <div className="ctx-row" aria-hidden>
       <span className="ctx-arrow">{arrow}</span>
-      {row.num !== undefined && <span className="ctx-num mono">{row.num}</span>}
+      {row.num !== undefined && <span className="ctx-num figures">{row.num}</span>}
       <span className={`ctx-label ${row.unset || !row.label.trim() ? 'ctx-empty' : ''}`}>{row.label.trim() || 'Empty'}</span>
-      {row.extra && <span className="ctx-extra mono">{row.extra}</span>}
+      {row.extra && <span className="ctx-extra figures">{row.extra}</span>}
     </div>
   )
 }

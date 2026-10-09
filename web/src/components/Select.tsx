@@ -131,7 +131,7 @@ function PickerSheet(props: { label: string; options: SelectOption[]; value: str
                   onClick={() => props.onPick(o.value)}
                 >
                   <span className="picker-option-label">{o.label}</span>
-                  {o.detail && <span className="picker-detail mono">{o.detail}</span>}
+                  {o.detail && <span className="picker-detail figures">{o.detail}</span>}
                   {o.value === props.value && (
                     <span className="picker-check" aria-hidden>
                       ✓

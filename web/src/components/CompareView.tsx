@@ -78,7 +78,7 @@ export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismat
           <div>
             <span className="edit-sheet-kind">Compare with device</span>
             <h3>
-              {deviceName} <span className="muted mono">{state.ip}</span>
+              {deviceName} <span className="muted figures">{state.ip}</span>
             </h3>
           </div>
           <button type="button" onClick={onClose}>
@@ -162,7 +162,7 @@ export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismat
                               <input type="checkbox" aria-label={`Use device name for ${r.label}`} checked={selected.has(r.key)} onChange={() => toggle(r.key)} />
                             )}
                           </td>
-                          <td className="num mono">
+                          <td className="num figures">
                             {r.side === 'in' ? 'In ' : 'Out '}
                             {r.label}
                           </td>
@@ -231,7 +231,7 @@ function Names({ names, hasLabels, highlightName, highlightLabel }: { names: Por
   return (
     <span className="compare-names">
       <span className={highlightName ? 'changed' : undefined}>{names.name || <em className="muted">empty</em>}</span>
-      {hasLabels && names.label !== undefined && <span className={`mono compare-label ${highlightLabel ? 'changed' : ''}`}>{names.label || '—'}</span>}
+      {hasLabels && names.label !== undefined && <span className={`figures compare-label ${highlightLabel ? 'changed' : ''}`}>{names.label || '—'}</span>}
     </span>
   )
 }

@@ -1,47 +1,62 @@
 :root {
   color-scheme: dark;
-  --bg: #111316;
-  --surface: #1a1d22;
-  --surface-2: #22262c;
-  --border: #2e333a;
-  --border-strong: #3d434c;
-  --text: #e8eaed;
-  --muted: #8c939d;
-  --accent: #f5a524;
-  --accent-text: #1a1206;
-  --error: #ff6b6b;
-  --error-bg: #3a1d1f;
-  --warn: #f5c451;
-  --warn-bg: #3a3119;
-  --info-bg: #1b2a3a;
-  --ok: #4cc38a;
-  --focus: #f5a52466;
-  --radius: 10px;
+  /* Graphite rack hardware, one yellow accent, and tally colours that mean something
+     (red = wrong, green = live / matches). Dark by default for dim control rooms. */
+  --bg: #1c2125; /* rack */
+  --surface: #252b30; /* faceplate: panels, tables, bars */
+  --surface-2: #2d3439;
+  --recess: #20262a; /* port-number strip */
+  --border: #343c43;
+  --border-strong: #46505a;
+  --text: #e4e8eb;
+  --muted: #8b959e;
+  /* Accent: --accent-fill is the primary button; --accent marks state (active tab, focus,
+     selection); --link is for text. */
+  --accent-fill: #f2c230;
+  --accent-ink: #17140a;
+  --accent: #f2c230;
+  --accent-text: #17140a;
+  --link: #f2c230;
+  --error: #e5484d; /* tally red */
+  --error-bg: #3b2327;
+  --warn: #f08c3a;
+  --warn-bg: #3a2b1d;
+  --info-bg: #22303b;
+  --ok: #3dbe7a; /* tally green */
+  --focus: #f2c23059;
+  --radius: 6px; /* panels */
+  --radius-control: 4px; /* inputs, buttons */
+  --radius-sheet: 10px; /* dialogs and sheets */
   --row-h: 44px;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 16px;
+  --font: 'Barlow Semi Condensed', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-label: 'Barlow Condensed', 'Barlow Semi Condensed', system-ui, sans-serif; /* 4-character ATEM Labels */
+  font-family: var(--font);
+  font-size: 17px;
   line-height: 1.4;
+  font-variant-numeric: lining-nums;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
     color-scheme: light;
-    --bg: #f4f5f7;
+    --bg: #e9ecee;
     --surface: #ffffff;
-    --surface-2: #f0f1f4;
-    --border: #dfe2e7;
-    --border-strong: #c7ccd4;
-    --text: #1b1e23;
-    --muted: #69707b;
-    --accent: #d98a0b;
-    --accent-text: #ffffff;
-    --error: #c92a2a;
-    --error-bg: #fdecec;
-    --warn: #a86b00;
-    --warn-bg: #fff4dc;
-    --info-bg: #e8f1fb;
-    --ok: #208a56;
-    --focus: #d98a0b55;
+    --surface-2: #f2f4f5;
+    --recess: #f1f3f4;
+    --border: #d5dade;
+    --border-strong: #b9c0c6;
+    --text: #161a1e;
+    --muted: #5f6973;
+    /* Yellow can't carry text or thin lines on white; a deeper tone does instead. */
+    --accent: #a67c00;
+    --link: #7d6200;
+    --error: #c9302c;
+    --error-bg: #fbeceb;
+    --warn: #b85c12;
+    --warn-bg: #fdf0e3;
+    --info-bg: #e7eff6;
+    --ok: #1e8a52;
+    --focus: #f2c23080;
   }
 }
 
@@ -63,18 +78,20 @@ h4 {
   margin: 0;
   font-weight: 600;
 }
+/* Type scale: 13 / 15 / 17 / 22 / 28. */
 h1 {
-  font-size: 1.25rem;
+  font-size: 22px;
+  letter-spacing: -0.005em;
 }
 h3 {
-  font-size: 1rem;
+  font-size: 18px;
 }
 h4 {
-  font-size: 0.95rem;
+  font-size: 17px;
 }
 
 a {
-  color: var(--accent);
+  color: var(--link);
   text-decoration: none;
 }
 
@@ -84,8 +101,8 @@ a {
 .small {
   font-size: 0.85rem;
 }
-.mono {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+/* IPs and port numbers: tabular figures line up in columns without a monospace face. */
+.figures {
   font-variant-numeric: tabular-nums;
 }
 .pad {
@@ -98,14 +115,14 @@ a {
   align-items: center;
 }
 
-/* Controls — 16px font keeps iPad Safari from zooming on focus. */
+/* Controls — at least 16px keeps iPad Safari from zooming on focus. */
 input,
 select,
 textarea,
 button,
 .button {
   font: inherit;
-  font-size: 16px;
+  font-size: 17px;
   color: inherit;
 }
 
@@ -117,7 +134,7 @@ textarea {
   padding: 8px 10px;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   outline: none;
 }
 input:focus,
@@ -148,8 +165,9 @@ button,
   gap: 6px;
   min-height: 40px;
   padding: 8px 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border-strong);
+  font-weight: 500;
   background: var(--surface-2);
   cursor: pointer;
   white-space: nowrap;
@@ -164,9 +182,9 @@ button:disabled {
   cursor: default;
 }
 button.primary {
-  background: var(--accent);
+  background: var(--accent-fill);
   border-color: var(--accent);
-  color: var(--accent-text);
+  color: var(--accent-ink);
   font-weight: 600;
 }
 button.ghost,
@@ -188,7 +206,7 @@ button.link {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--accent);
+  color: var(--link);
   text-decoration: underline;
 }
 button.link.danger {
@@ -297,8 +315,8 @@ button.icon {
 .save-status {
   font-size: 0.8rem;
   color: var(--muted);
-  padding: 2px 8px;
-  border-radius: 999px;
+  padding: 1px 7px;
+  border-radius: 3px;
   border: 1px solid var(--border);
   white-space: nowrap;
 }
@@ -325,15 +343,75 @@ button.icon {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 12px 14px;
+  padding: 12px 14px 11px;
   color: var(--muted);
-  border-bottom: 2px solid transparent;
-  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  font-weight: 600;
   white-space: nowrap;
 }
 .tabs a.active {
   color: var(--text);
   border-bottom-color: var(--accent);
+}
+
+/* Project pages: title, tabs and actions share one bar, leaving more height for the tables.
+   Narrower screens (iPad portrait, phones) put the tabs on a row of their own. */
+.project-bar {
+  --bar-pad-l: max(16px, env(safe-area-inset-left));
+  --bar-pad-r: max(16px, env(safe-area-inset-right));
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0 24px;
+  min-height: 60px;
+  padding: env(safe-area-inset-top) var(--bar-pad-r) 0 var(--bar-pad-l);
+}
+.project-bar > :not(.tabs) {
+  align-self: center;
+  margin-block: 10px;
+}
+.project-bar .brand {
+  flex: 0 1 auto;
+  max-width: 45%;
+}
+.project-bar .tabs {
+  flex: 1;
+  padding: 0;
+  background: none;
+  border-bottom: 0;
+}
+.project-bar .tabs a {
+  padding: 0 14px;
+  border-top: 3px solid transparent; /* balances the underline so labels sit centred */
+}
+@media (max-width: 900px) {
+  .project-bar {
+    flex-wrap: wrap;
+  }
+  .project-bar .brand {
+    flex: 1;
+    max-width: none;
+  }
+  .project-bar .tabs {
+    order: 3;
+    flex-basis: 100%;
+    margin: 0 calc(-1 * var(--bar-pad-r)) 0 calc(-1 * var(--bar-pad-l));
+    padding: 0 var(--bar-pad-r) 0 var(--bar-pad-l);
+    border-top: 1px solid var(--border);
+  }
+  .project-bar .tabs a {
+    padding: 12px 14px 11px;
+    border-top: 0;
+  }
+}
+
+/* Column headings stay in view while long port lists scroll under the header. */
+.label-table thead th,
+.network-table thead th {
+  position: sticky;
+  top: var(--head-h, 0px);
+  z-index: 2;
+  background: var(--surface);
+  box-shadow: inset 0 -1px 0 var(--border);
 }
 .tab-dot {
   width: 6px;
@@ -344,7 +422,7 @@ button.icon {
 .badge {
   min-width: 20px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: 3px;
   background: var(--error-bg);
   color: var(--error);
   font-size: 0.75rem;
@@ -370,6 +448,9 @@ button.icon {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
+}
+.grid-card > .card-head {
+  border-bottom: 1px solid var(--border);
 }
 .card-head h3,
 .card-head h4 {
@@ -446,8 +527,15 @@ button.icon {
   padding: 6px 0;
   color: var(--text);
 }
-.project-link .muted {
-  font-size: 0.9rem;
+.project-link strong {
+  font-size: 18px;
+  font-weight: 600;
+}
+.project-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  font-size: 15px;
 }
 .updated {
   font-size: 0.85rem;
@@ -455,6 +543,61 @@ button.icon {
 .row-actions {
   display: flex;
   gap: 2px;
+}
+/* Quieter than the project names; Delete keeps its tally red. */
+.row-actions .ghost:not(.danger) {
+  color: var(--muted);
+}
+.row-actions .ghost:hover {
+  color: var(--text);
+}
+
+/* Project list on iPad and desktop: one row per show, actions behind ⋯. */
+.project-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+.project-table th {
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.project-table td {
+  padding: 4px 16px;
+  height: 56px;
+  border-bottom: 1px solid var(--border);
+}
+.project-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.project-table-row {
+  cursor: pointer;
+}
+.project-table tbody tr:hover td {
+  background: var(--surface-2);
+}
+.project-table-name a {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+}
+.project-table .act {
+  width: 56px;
+  text-align: right;
+  padding-right: 8px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Device tabs */
@@ -507,7 +650,7 @@ button.icon {
 }
 .label-table th {
   text-align: left;
-  font-size: 0.8rem;
+  font-size: 13px;
   font-weight: 500;
   color: var(--muted);
   padding: 6px 8px;
@@ -539,32 +682,40 @@ button.icon {
 .label-table td input.is-warn {
   border-color: var(--warn);
 }
+/* Port numbers sit in a recessed strip, like a patch bay's numbering. */
 .label-table .num {
   width: 56px;
   text-align: right;
   padding-right: 12px;
   color: var(--muted);
+  background: var(--recess);
+  font-variant-numeric: tabular-nums;
   line-height: calc(var(--row-h) - 4px);
 }
 .label-table th.num {
   line-height: normal;
+  background: var(--recess);
 }
 .label-table .short {
-  width: 92px;
+  width: 100px;
+  padding-right: 10px;
 }
+/* ATEM Labels in the condensed face, centred like a panel button. A Label generated from the
+   Name shows greyed as the placeholder. */
 .label-table .short input {
-  text-transform: none;
+  font-family: var(--font-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: center;
 }
-/* Blank Name/label: the default stands in, greyed (the device keeps its own name). */
+/* Blank Name: the default stands in, greyed (the device keeps its own name). */
 input.is-unset::placeholder {
   color: var(--muted);
-  opacity: 0.75;
-  font-style: italic;
+  opacity: 0.8;
 }
 input.is-auto::placeholder {
   color: var(--muted);
   opacity: 0.9;
-  font-style: italic;
 }
 
 /* Network */
@@ -628,22 +779,21 @@ input.is-auto::placeholder {
   gap: 6px;
 }
 .pill {
-  font-size: 0.7rem;
+  font-size: 13px;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
+  padding: 0 6px;
+  border-radius: 3px;
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
-  color: var(--accent);
+  color: var(--text);
   white-space: nowrap;
 }
-/* Role group headers: a tinted band with an accent edge, spaced away from the group above. */
+/* Role group headers: a recessed band, spaced away from the group above. */
 .network-table tr.group-row th {
   padding: 10px 12px;
-  font-size: 0.95rem;
+  font-size: 17px;
   color: var(--text);
-  background: var(--surface-2);
-  box-shadow: inset 3px 0 0 var(--accent);
+  background: var(--recess);
   border-bottom: 1px solid var(--border-strong);
 }
 .network-table tbody + tbody tr.group-row th {
@@ -651,18 +801,18 @@ input.is-auto::placeholder {
   border-top: 28px solid var(--surface);
 }
 .group-label {
-  font-weight: 700;
+  font-weight: 600;
 }
-.group-row .mono {
+.group-row .figures {
   margin-left: 6px;
-  font-size: 0.85rem;
+  font-size: 15px;
 }
 .group-used {
   float: right;
   font-weight: 500;
-  font-size: 0.8rem;
-  padding: 1px 8px;
-  border-radius: 999px;
+  font-size: 13px;
+  padding: 1px 7px;
+  border-radius: 3px;
   background: var(--surface);
   border: 1px solid var(--border);
 }
@@ -680,7 +830,7 @@ input.is-auto::placeholder {
 
 .ranges {
   position: sticky;
-  top: 120px;
+  top: calc(var(--head-h, 104px) + 16px);
 }
 .ranges > p {
   margin: -6px 16px 8px;
@@ -700,7 +850,9 @@ input.is-auto::placeholder {
   padding: 6px 8px;
   border-color: transparent;
   background: transparent;
-  font-size: 0.85rem;
+  font-size: 15px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 .range.active {
   background: var(--surface-2);
@@ -752,7 +904,7 @@ input.is-auto::placeholder {
   padding: 16px;
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-sheet);
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.4);
 }
 .edit-sheet-head {
@@ -765,11 +917,9 @@ input.is-auto::placeholder {
   font-size: 1.15rem;
 }
 .edit-sheet-kind {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--accent);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted);
 }
 /* Neighbouring rows above and below the fields, styled like table rows. */
 .ctx-row {
@@ -781,7 +931,7 @@ input.is-auto::placeholder {
   font-size: 0.9rem;
   color: var(--muted);
   border: 1px dashed var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius);
 }
 .ctx-edge {
   justify-content: center;
@@ -881,7 +1031,7 @@ input.is-auto::placeholder {
   padding: 16px 16px 8px;
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-sheet);
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.4);
 }
 .picker-list {
@@ -898,10 +1048,8 @@ input.is-auto::placeholder {
   top: 0;
   z-index: 1;
   padding: 10px 12px 6px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--muted);
   background: var(--surface);
 }
@@ -916,7 +1064,7 @@ input.is-auto::placeholder {
   text-align: left;
   background: transparent;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius);
   white-space: normal;
 }
 .picker-option + .picker-option {
@@ -925,7 +1073,7 @@ input.is-auto::placeholder {
 }
 .picker-option[aria-selected='true'] {
   background: var(--surface-2);
-  border-radius: 10px;
+  border-radius: var(--radius);
   font-weight: 600;
 }
 .picker-option[aria-selected='true'] + .picker-option {
@@ -939,7 +1087,7 @@ input.is-auto::placeholder {
   color: var(--muted);
 }
 .picker-check {
-  color: var(--accent);
+  color: var(--link);
   font-weight: 700;
 }
 
@@ -958,7 +1106,7 @@ input.is-auto::placeholder {
   padding: 20px;
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-sheet);
   box-shadow: 0 16px 48px rgb(0 0 0 / 0.45);
 }
 .dialog h3 {
@@ -995,7 +1143,7 @@ button.danger-solid {
   flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-sheet);
   box-shadow: 0 16px 48px rgb(0 0 0 / 0.45);
   overflow: hidden;
 }
@@ -1009,6 +1157,10 @@ button.danger-solid {
 }
 .compare-head h3 {
   font-size: 1.1rem;
+}
+/* Reading, or a failed read: the sheet fits its message instead of filling the screen. */
+.compare-sheet:has(> .compare-message) {
+  bottom: auto;
 }
 .compare-message {
   display: flex;
@@ -1081,7 +1233,9 @@ button.danger-solid {
   flex-wrap: wrap;
 }
 .compare-label {
-  font-size: 0.85rem;
+  font-family: var(--font-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
   color: var(--muted);
 }
 .compare-names .changed {
@@ -1094,15 +1248,15 @@ button.danger-solid {
   font-size: 0.7rem;
   color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 3px;
   padding: 0 6px;
 }
 .pill-status {
   display: inline-block;
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
+  padding: 1px 7px;
+  border-radius: 3px;
   border: 1px solid var(--border-strong);
   color: var(--muted);
   white-space: nowrap;
@@ -1142,10 +1296,8 @@ button.danger-solid {
 }
 .compare-direction {
   width: 100%;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--muted);
 }
 .spinner {
@@ -1195,7 +1347,7 @@ button.danger-solid {
   padding: 8px 8px 8px 16px;
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-sheet);
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.4);
   animation: toast-in 0.2s ease-out;
 }
@@ -1203,7 +1355,7 @@ button.danger-solid {
   flex: 1;
 }
 .toast-action {
-  color: var(--accent);
+  color: var(--link);
   font-weight: 700;
   background: transparent;
   border-color: transparent;
@@ -1278,11 +1430,12 @@ a.picker-option {
   padding: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
 }
 .segmented button {
   min-height: 40px;
   border: 0;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--muted);
   font-weight: 600;
@@ -1294,7 +1447,8 @@ a.picker-option {
 }
 .segmented-detail {
   font-weight: 400;
-  font-size: 0.8rem;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
 
@@ -1399,6 +1553,15 @@ a.picker-option {
     padding-top: max(8px, env(safe-area-inset-top));
     padding-bottom: 8px;
   }
+  /* Project pages keep the tabs on their own row under the title. */
+  .project-bar {
+    flex-wrap: wrap;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: 0;
+  }
+  .project-bar > :not(.tabs) {
+    margin-block: 8px;
+  }
   .topbar .brand {
     flex: 1;
   }
@@ -1445,11 +1608,13 @@ a.picker-option {
   }
 
   /* Phones: tabs share the width so all four fit without swiping. */
-  .tabs {
+  .tabs,
+  .project-bar .tabs {
     gap: 0;
     padding: 0 4px;
   }
-  .tabs a {
+  .tabs a,
+  .project-bar .tabs a {
     flex: 1;
     justify-content: center;
     gap: 4px;
@@ -1579,7 +1744,7 @@ body.print-body {
   --rule-strong: #1b1e23;
   --band: #f6f7f9;
   --head: #eceef1;
-  --gold: #f5a524;
+  --accent-fill: #f2c230;
   color-scheme: light;
   max-width: 1050px;
   margin: 24px auto 48px;
@@ -1588,7 +1753,7 @@ body.print-body {
   color: var(--ink);
   border-radius: 6px;
   box-shadow: 0 2px 24px rgb(0 0 0 / 0.25);
-  font-size: 13px;
+  font-size: 15px;
 }
 .sheet-header {
   display: flex;
@@ -1596,15 +1761,23 @@ body.print-body {
   align-items: flex-start;
   gap: 16px;
   padding-bottom: 12px;
-  border-bottom: 3px solid var(--gold);
+  border-bottom: 3px solid var(--accent-fill);
 }
 .sheet-header h1 {
-  font-size: 26px;
+  font-size: 28px;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 .sheet-meta {
-  margin: 4px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 20px;
+  margin: 6px 0 0;
   color: var(--ink-muted);
+}
+.sheet-meta strong {
+  color: var(--ink);
+  font-weight: 500;
 }
 .sheet-brand {
   display: flex;
@@ -1618,7 +1791,7 @@ body.print-body {
   margin: 12px 0 0;
   padding: 10px 12px;
   background: var(--band);
-  border-left: 3px solid var(--gold);
+  border-left: 3px solid var(--accent-fill);
   white-space: pre-wrap;
 }
 
@@ -1635,18 +1808,8 @@ body.print-body {
   border-bottom: 1.5px solid var(--rule-strong);
 }
 .section-head h2 {
-  font-size: 17px;
-}
-.section-kind {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: var(--rule-strong);
-  color: var(--gold);
-  align-self: center;
+  font-size: 22px;
+  font-weight: 600;
 }
 .section-model {
   color: var(--ink-muted);
@@ -1669,16 +1832,14 @@ body.print-body {
 }
 .sheet-table caption {
   text-align: left;
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ink);
   padding-bottom: 4px;
 }
 .sheet-table th {
   text-align: left;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink-muted);
   background: var(--head);
@@ -1699,8 +1860,9 @@ body.print-body {
   text-align: right;
   color: var(--ink-muted);
   padding-right: 10px;
+  font-variant-numeric: tabular-nums;
 }
-.sheet-table .chip-col {
+.sheet-table .sheet-label-col {
   width: 1%;
   text-align: center;
 }
@@ -1708,15 +1870,11 @@ body.print-body {
   line-height: 16px;
   vertical-align: middle;
 }
-.chip {
-  display: inline-block;
-  min-width: 42px;
-  padding: 0 5px;
-  font-size: 10px;
-  line-height: 14px;
-  font-weight: 700;
-  border: 1px solid var(--rule-strong);
-  border-radius: 3px;
+/* ATEM Labels: the condensed face, no box. */
+.sheet-label {
+  font-family: var(--font-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
 }
 .sheet-table td.none {
   color: var(--ink-muted);
@@ -1733,12 +1891,12 @@ body.print-body {
 .sheet-table.net-list tr.group th {
   background: none;
   color: var(--ink);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   padding: 12px 8px 4px;
   border-bottom: 1.5px solid var(--rule-strong);
 }
-.sheet-table.net-list tr.group th .mono {
+.sheet-table.net-list tr.group th .figures {
   font-weight: 400;
   color: var(--ink-muted);
 }
@@ -1750,12 +1908,10 @@ body.print-body {
 }
 .tag {
   margin-left: 8px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 1px 5px;
-  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 5px;
+  border-radius: 2px;
   background: var(--head);
   color: var(--ink-muted);
 }
@@ -1794,7 +1950,7 @@ body.print-body {
     padding: 0;
     box-shadow: none;
     border-radius: 0;
-    font-size: 11px;
+    font-size: 12px;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

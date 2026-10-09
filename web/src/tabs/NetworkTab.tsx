@@ -172,7 +172,7 @@ export function NetworkTab({ data, update, projectId }: { data: ProjectData; upd
     <label className="field">
       <span>IP {ipDraft === null && suggested ? <em className="muted">(next free)</em> : null}</span>
       <input
-        className="mono"
+        className="figures"
         value={newIp}
         inputMode="decimal"
         placeholder={suggested ? '' : 'Range full'}
@@ -197,9 +197,9 @@ export function NetworkTab({ data, update, projectId }: { data: ProjectData; upd
             setIpDraft(null)
           }}
         >
-          <span className="mono span">{r.span}</span>
+          <span className="figures span">{r.span}</span>
           <span className="label">{r.label}</span>
-          <span className="mono used">
+          <span className="figures used">
             {r.used}/{r.size}
           </span>
         </button>
@@ -252,7 +252,7 @@ export function NetworkTab({ data, update, projectId }: { data: ProjectData; upd
                     <tr className="group-row">
                       <th colSpan={4}>
                         <span className="group-label">{group.label}</span>
-                        {group.span && <span className="mono muted"> {group.span}</span>}
+                        {group.span && <span className="figures muted"> {group.span}</span>}
                         {group.size > 0 && (
                           <span className="muted group-used">
                             {usage.find((u) => u.id === group.key)?.used ?? group.rows.length} of {group.size} used
@@ -316,7 +316,7 @@ export function NetworkTab({ data, update, projectId }: { data: ProjectData; upd
             <summary>
               <strong>IP ranges</strong>
               <span className="muted small">
-                {usage.filter((u) => u.used > 0).length} of {usage.length} in use · <span className="mono">{subnetText}</span>
+                {usage.filter((u) => u.used > 0).length} of {usage.length} in use · <span className="figures">{subnetText}</span>
               </span>
             </summary>
             {rangesList}
@@ -342,7 +342,7 @@ export function NetworkTab({ data, update, projectId }: { data: ProjectData; upd
                 key: 'ip',
                 label: 'IP address',
                 value: editing.row.ip,
-                mono: true,
+                figures: true,
                 inputMode: 'decimal' as const,
                 error: issues.some((x) => x === 'invalid' || x === 'duplicate' || x === 'reserved'),
                 onChange: (ip: string) => setRow(editing.row, { ip: ip.replace(/[^\d.]/g, '') }),
@@ -375,7 +375,7 @@ export function NetworkTab({ data, update, projectId }: { data: ProjectData; upd
               Edit
             </a>
           </header>
-          <p className="muted small mono">{subnetText}</p>
+          <p className="muted small figures">{subnetText}</p>
           {rangesList}
         </aside>
       )}

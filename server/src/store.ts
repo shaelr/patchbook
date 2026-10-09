@@ -40,6 +40,7 @@ export class ProjectStore {
         atemModel: data.atem?.model ?? null,
         videohubModel: data.videohub?.model ?? null,
         networkCount: data.network.length,
+        subnet: data.subnet,
       }
     })
   }

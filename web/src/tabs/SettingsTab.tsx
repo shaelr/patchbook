@@ -26,7 +26,7 @@ export function SettingsTab({ data, update }: { data: ProjectData; update: Proje
         <label className="field">
           <span>Subnet</span>
           <input
-            className={`mono ${subnet ? '' : 'is-error'}`}
+            className={`figures ${subnet ? '' : 'is-error'}`}
             value={data.subnet}
             onChange={(e) => update((d) => (d.subnet = e.target.value.trim()))}
             placeholder="192.168.10.0/24"
@@ -80,7 +80,7 @@ export function SettingsTab({ data, update }: { data: ProjectData; update: Proje
                   {(['start', 'end'] as const).map((k) => (
                     <td key={k} className="num-col" data-label={k === 'start' ? 'From' : 'To'}>
                       <input
-                        className={`mono ${bad ? 'is-warn' : ''}`}
+                        className={`figures ${bad ? 'is-warn' : ''}`}
                         type="number"
                         inputMode="numeric"
                         min={0}

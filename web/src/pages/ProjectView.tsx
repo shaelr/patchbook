@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { allProjectIps, atemLabelIssues, ipIssues, type ProjectData } from '@patchbook/shared'
 import { api, importNotices } from '../api.ts'
 import { ActionMenu } from '../components/ActionMenu.tsx'
@@ -35,6 +35,18 @@ function tabIssues(data: ProjectData): Partial<Record<Tab, number>> {
 export function ProjectView({ id, tab }: { id: string; tab: Tab }) {
   const { project, loadError, status, conflict, update, resolveConflict } = useProject(id)
   const [notices, setNotices] = useState(() => importNotices.get(id) ?? [])
+  // Pinned table headings sit just under the header, whose height changes when it wraps.
+  const headRef = useRef<HTMLDivElement>(null)
+  const loaded = project !== null
+  useLayoutEffect(() => {
+    const head = headRef.current
+    if (!head) return
+    const setHeight = () => document.documentElement.style.setProperty('--head-h', `${head.offsetHeight}px`)
+    setHeight()
+    const observer = new ResizeObserver(setHeight)
+    observer.observe(head)
+    return () => observer.disconnect()
+  }, [loaded])
 
   if (loadError) {
     return (
@@ -53,8 +65,8 @@ export function ProjectView({ id, tab }: { id: string; tab: Tab }) {
 
   return (
     <div className="page">
-      <div className="sticky-head">
-      <header className="topbar">
+      <div className="sticky-head" ref={headRef}>
+      <header className="topbar project-bar">
         <div className="brand">
           <a href={href.list()} className="back" aria-label="All projects">
             ‹
@@ -64,6 +76,16 @@ export function ProjectView({ id, tab }: { id: string; tab: Tab }) {
             {STATUS_TEXT[status]}
           </span>
         </div>
+        <nav className="tabs" aria-label="Project sections">
+          {TABS.map((t) => (
+            <a key={t} href={href.project(id, t)} className={t === tab ? 'active' : undefined} aria-current={t === tab ? 'page' : undefined}>
+              {TAB_LABELS[t]}
+              {t === 'atem' && data.atem && <span className="tab-dot" aria-hidden />}
+              {t === 'videohub' && data.videohub && <span className="tab-dot" aria-hidden />}
+              {!!issues[t] && <span className="badge" title={`${issues[t]} to check`}>{issues[t]}</span>}
+            </a>
+          ))}
+        </nav>
         <ActionMenu
           className="phone-only"
           label="Project actions"
@@ -86,17 +108,6 @@ export function ProjectView({ id, tab }: { id: string; tab: Tab }) {
           </a>
         </div>
       </header>
-
-      <nav className="tabs" aria-label="Project sections">
-        {TABS.map((t) => (
-          <a key={t} href={href.project(id, t)} className={t === tab ? 'active' : undefined} aria-current={t === tab ? 'page' : undefined}>
-            {TAB_LABELS[t]}
-            {t === 'atem' && data.atem && <span className="tab-dot" aria-hidden />}
-            {t === 'videohub' && data.videohub && <span className="tab-dot" aria-hidden />}
-            {!!issues[t] && <span className="badge" title={`${issues[t]} to check`}>{issues[t]}</span>}
-          </a>
-        ))}
-      </nav>
       </div>
 
       <main className="content">

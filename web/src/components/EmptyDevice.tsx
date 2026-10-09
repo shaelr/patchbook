@@ -52,7 +52,7 @@ export function EmptyDevice({ kind, models, onAdd, onCustom, onReadDevice }: Pro
           <p className="muted small">Patchbook detects the model and copies the current names. Nothing is sent to the device.</p>
           <div className="row">
             <input
-              className="mono"
+              className="figures"
               value={ip}
               inputMode="decimal"
               aria-label={`${kind} IP address`}
