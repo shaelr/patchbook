@@ -46,7 +46,7 @@ export function DeviceHeader<K extends string>(props: Props<K>) {
       </label>
       <label className="field">
         <span>IP address</span>
-        <IpField value={props.ip} issues={props.ipIssues} onChange={props.onIp} placeholder="" />
+        <IpField value={props.ip} issues={props.ipIssues} onChange={props.onIp} placeholder="" inputProps={{ 'data-field': 'device-ip' }} />
       </label>
       <div className="device-actions">
         {!phone && (

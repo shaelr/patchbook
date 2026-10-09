@@ -26,6 +26,18 @@ export interface AtemReading {
   factoryDefaults: string[]
 }
 
+/** A Blackmagic device that announced itself on the network (Bonjour, `_blackmagic._tcp`). */
+export interface FoundDevice {
+  /** The device's unique id, or its name and IP when it doesn't send one. */
+  id: string
+  /** As the device names itself, e.g. "ATEM 2 M/E Constellation 4K". */
+  name: string
+  /** Blackmagic's device class, e.g. "AtemSwitcher", "Videohub", "HyperDeck". */
+  deviceClass: string
+  kind: 'atem' | 'videohub' | 'other'
+  ip: string
+}
+
 export interface VideohubReading {
   /** As the Videohub reports it, e.g. "Blackmagic Videohub 40x40 12G". */
   modelName: string

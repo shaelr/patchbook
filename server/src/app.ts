@@ -3,8 +3,9 @@ import Fastify, { type FastifyInstance } from 'fastify'
 import fastifyStatic from '@fastify/static'
 import { z } from 'zod'
 import { newProjectData, ProjectDataSchema, type ProjectData } from '@patchbook/shared'
-import { parseIp, type AtemNameWrite, type AtemReading, type VideohubLabelWrite, type VideohubReading } from '@patchbook/shared'
+import { parseIp, parseSubnet, type AtemNameWrite, type AtemReading, type FoundDevice, type VideohubLabelWrite, type VideohubReading } from '@patchbook/shared'
 import { readAtem, writeAtem } from './devices/atem.ts'
+import { Discovery } from './devices/discovery.ts'
 import { DeviceError } from './devices/errors.ts'
 import { readVideohub, writeVideohub } from './devices/videohub.ts'
 import type { ProjectStore } from './store.ts'
@@ -15,9 +16,9 @@ export interface DeviceAccess {
   readVideohub: (ip: string) => Promise<VideohubReading>
   writeAtem: (ip: string, ports: AtemNameWrite[]) => Promise<AtemReading>
   writeVideohub: (ip: string, ports: VideohubLabelWrite[]) => Promise<VideohubReading>
+  /** Blackmagic devices announced on the network. */
+  findDevices: () => Promise<FoundDevice[]>
 }
-
-const REAL_DEVICES: DeviceAccess = { readAtem, readVideohub, writeAtem, writeVideohub }
 
 export interface AppOptions {
   store: ProjectStore
@@ -29,7 +30,10 @@ export interface AppOptions {
 }
 
 const UpdateBody = z.object({ version: z.number().int(), data: ProjectDataSchema })
-const CreateBody = z.object({ name: z.string().trim().min(1).max(120) })
+const CreateBody = z.object({
+  name: z.string().trim().min(1).max(120),
+  subnet: z.string().trim().refine((s) => parseSubnet(s) !== null, 'Enter a subnet like 192.168.10.0/24').optional(),
+})
 const DuplicateBody = z.object({ name: z.string().trim().min(1).max(120).optional() })
 const BackupSchema = z.object({ patchbook: z.literal(1), data: ProjectDataSchema })
 
@@ -49,8 +53,11 @@ const VideohubWriteBody = z.object({
 })
 
 export function buildApp({ store, webDir, logger = false, devices: overrides = {} }: AppOptions): FastifyInstance {
-  const devices: DeviceAccess = { ...REAL_DEVICES, ...overrides }
+  // Network discovery starts on first use and stops with the server.
+  const discovery = new Discovery()
+  const devices: DeviceAccess = { readAtem, readVideohub, writeAtem, writeVideohub, findDevices: () => discovery.list(), ...overrides }
   const app = Fastify({ logger, bodyLimit: 20 * 1024 * 1024 })
+  app.addHook('onClose', async () => discovery.stop())
 
   app.addContentTypeParser(
     ['application/octet-stream', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
@@ -93,6 +100,8 @@ export function buildApp({ store, webDir, logger = false, devices: overrides = {
     return { ip: ip.normalized, key: `${kind}:${ip.normalized}` }
   }
 
+  app.get('/api/devices/found', async () => ({ devices: await devices.findDevices() }))
+
   app.post<{ Params: { kind: string } }>('/api/devices/:kind/read', async (req, reply) => {
     const { kind } = req.params
     if (kind !== 'atem' && kind !== 'videohub') return reply.code(404).send({ error: 'Unknown device type' })
@@ -126,8 +135,8 @@ export function buildApp({ store, webDir, logger = false, devices: overrides = {
   app.get('/api/projects', async () => store.list())
 
   app.post('/api/projects', async (req, reply) => {
-    const { name } = CreateBody.parse(req.body)
-    return reply.code(201).send(store.create(newProjectData(name)))
+    const { name, subnet } = CreateBody.parse(req.body)
+    return reply.code(201).send(store.create(newProjectData(name, subnet)))
   })
 
   app.get<{ Params: { id: string } }>('/api/projects/:id', async (req) => getOr404(req.params.id))

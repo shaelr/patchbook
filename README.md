@@ -9,6 +9,7 @@ Runs as a small server on a Mac or Raspberry Pi; use it from any browser on the 
 - Projects you can create, duplicate, back up and restore
 - Pick an ATEM or Videohub model and get its full input/output list (Custom counts for anything else)
 - ATEM Names (20 characters) and Labels (4 characters, generated from the Name unless you set one); Videohub Labels
+- Finds Blackmagic devices on the network, so you pick them instead of typing IPs
 - Read names from an ATEM or Videohub, compare them with the project, copy them in, or send your names to the device (with Undo)
 - Network list with IP ranges by role, next-free-address suggestions, and checks for duplicates, typos and out-of-subnet addresses
 - Import your existing Excel sheets; export to Excel, a printable sheet (or PDF), or a JSON backup

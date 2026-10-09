@@ -21,6 +21,8 @@ import {
   parseIp,
   parseSubnet,
   ProjectDataSchema,
+  projectIssues,
+  suggestedSubnet,
   rangeForIp,
 } from './index.ts'
 
@@ -253,5 +255,44 @@ describe('network rows', () => {
       networkRows(data).map((r) => r.name),
       ['Camera Control', 'ATEM', 'Switcher Panel', 'Record 1', 'Spare Camera'],
     )
+  })
+})
+
+describe('project checks', () => {
+  test('problems are listed per tab, with where to find each', () => {
+    const data = newProjectData('Show')
+    data.atem = { ...buildAtem('mini', null, null), ip: '192.168.10.10' }
+    data.atem.inputs[2]!.long = 'A name that is far too long'
+    data.atem.outputs[0]!.short = 'PROGRAM'
+    data.network.push({ id: 'a', name: 'Panel', ip: '192.168.10.10' }, { id: 'b', name: '', ip: '10.0.0.5' })
+    const issues = projectIssues(data)
+    assert.deepEqual(
+      issues.filter((i) => i.tab === 'atem').map((i) => i.target),
+      [
+        { kind: 'atem-port', list: 'in', index: 2, field: 'long' },
+        { kind: 'atem-port', list: 'out', index: 0, field: 'short' },
+        { kind: 'device-ip', device: 'atem' },
+      ],
+    )
+    assert.match(issues.find((i) => i.target.kind === 'device-ip')!.text, /^IP address 192\.168\.10\.10: Used by another device/)
+    assert.deepEqual(
+      issues.filter((i) => i.tab === 'network').map((i) => i.text),
+      ['ATEM (192.168.10.10): Used by another device', 'Panel (192.168.10.10): Used by another device', 'Unnamed device (10.0.0.5): Outside the project subnet'],
+    )
+    assert.equal(issues.filter((i) => i.tab === 'videohub').length, 0)
+  })
+
+  test('suggests a subnet only when every IP is outside the current one and they share a /24', () => {
+    const data = newProjectData('Show')
+    assert.equal(suggestedSubnet(data), null, 'no IPs yet')
+    data.atem = { ...buildAtem('mini', null, null), ip: '10.20.30.10' }
+    data.network.push({ id: 'a', name: 'Panel', ip: '10.20.30.11' })
+    assert.equal(suggestedSubnet(data), '10.20.30.0/24')
+    data.network.push({ id: 'b', name: 'Recorder', ip: '10.20.31.30' })
+    assert.equal(suggestedSubnet(data), null, 'IPs on two different /24s: no single answer')
+    data.network.pop()
+    data.network.push({ id: 'c', name: 'Old', ip: '192.168.10.50' })
+    assert.equal(suggestedSubnet(data), null, 'something still uses the current subnet')
+    assert.equal(newProjectData('Show', '10.20.30.0/24').subnet, '10.20.30.0/24')
   })
 })

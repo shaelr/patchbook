@@ -11,6 +11,7 @@ import {
   parseSubnet,
   rangeForIp,
   rangeSpan,
+  type FoundDevice,
   type IpRange,
   type NetworkRow,
   type ProjectData,
@@ -20,6 +21,7 @@ import { alertDialog, confirmDialog } from '../components/Dialogs.tsx'
 import { EditSheet, useEditSheet } from '../components/EditSheet.tsx'
 import { Sheet } from '../components/Sheet.tsx'
 import { useIsPhone } from '../useMedia.ts'
+import { useFoundDevices } from '../useFoundDevices.ts'
 import { cellProps } from '../components/grid.ts'
 import { IpField } from '../components/IpField.tsx'
 import { Select, type SelectOption } from '../components/Select.tsx'
@@ -41,6 +43,17 @@ export function NetworkTab({ data, update, projectId }: { data: ProjectData; upd
   const [lastAdded, setLastAdded] = useState<string | null>(null)
 
   const allIps = allProjectIps(data)
+  // Blackmagic devices announced on the network that aren't in the show yet.
+  const found = useFoundDevices()
+  const inShow = new Set(allIps.map((ip) => parseIp(ip)?.normalized ?? ip))
+  const notInShow = found.filter((d) => !inShow.has(d.ip))
+  const pickFound = (device: FoundDevice) => {
+    const range = rangeForIp(device.ip, data)
+    if (range) setRoleId(range.id)
+    setName(device.name)
+    setIpDraft(device.ip)
+    nameInput.current?.focus()
+  }
   const role = data.ipRanges.find((r) => r.id === roleId) ?? data.ipRanges[0]
   const suggested = role ? nextFreeIp(role, data) : null
   const newIp = ipDraft ?? suggested ?? ''
@@ -147,6 +160,7 @@ export function NetworkTab({ data, update, projectId }: { data: ProjectData; upd
 
   const subnetText = parseSubnet(data.subnet) ? data.subnet : `Invalid subnet: ${data.subnet}`
   const addForm = (
+  <>
   <div className="add-row">
     <label className="field">
       <span>Role</span>
@@ -184,6 +198,22 @@ export function NetworkTab({ data, update, projectId }: { data: ProjectData; upd
       Add
     </button>
   </div>
+  {notInShow.length > 0 && (
+    <div className="found-on-network">
+      <span className="muted small">On this network:</span>
+      <ul className="found-devices" aria-label="Devices on this network">
+        {notInShow.map((d) => (
+          <li key={d.id}>
+            <button type="button" onClick={() => pickFound(d)}>
+              <span>{d.name}</span>
+              <span className="figures muted">{d.ip}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
+  </>
   )
   const rangesList = (
   <ul>
@@ -284,7 +314,7 @@ export function NetworkTab({ data, update, projectId }: { data: ProjectData; upd
                               value={row.ip}
                               issues={ipIssues(row.ip, data.subnet, allIps)}
                               onChange={(ip) => setRow(row, { ip })}
-                              inputProps={{ ...cellProps('net', i, 'ip'), ...(sheet.touch ? touchCell(row, 'ip') : ipEditing) }}
+                              inputProps={{ ...cellProps('net', i, 'ip'), 'data-key': row.key, ...(sheet.touch ? touchCell(row, 'ip') : ipEditing) }}
                             />
                           </td>
                           <td className="role-col">

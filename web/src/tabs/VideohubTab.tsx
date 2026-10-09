@@ -83,6 +83,7 @@ export function VideohubTab({ data, update }: { data: ProjectData; update: Proje
     return (
       <EmptyDevice
         kind="Videohub"
+        discover="videohub"
         models={VIDEOHUB_MODELS}
         onAdd={(model) => update((d) => (d.videohub = buildVideohub(model, null, null)))}
         onCustom={() => update((d) => (d.videohub = buildVideohub(CUSTOM_MODEL, { inputs: 16, outputs: 16 }, null)))}

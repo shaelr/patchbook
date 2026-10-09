@@ -212,6 +212,13 @@ button.link {
 button.link.danger {
   color: var(--error);
 }
+/* A fallback next to a main action: present, but not competing with it. */
+button.link.quiet {
+  color: var(--muted);
+}
+button.link.quiet:hover {
+  color: var(--text);
+}
 button.icon {
   width: 40px;
   padding: 0;
@@ -1330,6 +1337,61 @@ button.danger-solid {
 }
 .read-device input {
   width: 200px;
+}
+
+/* Blackmagic devices announced on the network, offered instead of typing an IP. */
+.found-devices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.found-devices button {
+  gap: 10px;
+  font-weight: 500;
+}
+.found-devices .figures {
+  font-weight: 400;
+}
+.found-on-network {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+
+/* Problems on a tab, listed from its badge; each jumps to its field. */
+.issues ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 8px;
+}
+.issues .issue {
+  width: 100%;
+  justify-content: flex-start;
+  min-height: 40px;
+  padding: 8px;
+  text-align: left;
+  white-space: normal;
+  font-weight: 400;
+  background: transparent;
+  border-color: transparent;
+}
+.issues .issue:hover {
+  background: var(--surface-2);
+}
+.issues .card-head {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.tabs .badge {
+  cursor: pointer;
+}
+.subnet-field input {
+  width: 190px;
 }
 
 /* Undo bar after copying names from a device. */

@@ -110,6 +110,7 @@ export function AtemTab({ data, update }: { data: ProjectData; update: ProjectUp
     return (
       <EmptyDevice
         kind="ATEM"
+        discover="atem"
         models={ATEM_MODELS}
         onAdd={(model) => update((d) => (d.atem = buildAtem(model, null, null)))}
         onCustom={() => update((d) => (d.atem = buildAtem(CUSTOM_MODEL, { inputs: 8, aux: 2, mvs: 1 }, null)))}

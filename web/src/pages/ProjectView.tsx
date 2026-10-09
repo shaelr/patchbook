@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react'
-import { allProjectIps, atemLabelIssues, ipIssues, type ProjectData } from '@patchbook/shared'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { projectIssues, suggestedSubnet, type IssueTarget, type ProjectData, type ProjectIssue } from '@patchbook/shared'
 import { api, importNotices } from '../api.ts'
 import { ActionMenu } from '../components/ActionMenu.tsx'
 import { href, TABS, type Tab } from '../router.ts'
@@ -20,19 +20,46 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
   conflict: 'Not saved — conflict',
 }
 
-/** Problem counts shown as badges on the tabs. */
-function tabIssues(data: ProjectData): Partial<Record<Tab, number>> {
-  const allIps = allProjectIps(data)
-  const ipProblems = (ip: string) => (ipIssues(ip, data.subnet, allIps).length ? 1 : 0)
-  const atem = data.atem
-    ? [...data.atem.inputs, ...data.atem.outputs].filter((p) => atemLabelIssues(p).length).length + ipProblems(data.atem.ip)
-    : 0
-  const videohub = data.videohub ? ipProblems(data.videohub.ip) : 0
-  const network = data.network.reduce((n, e) => n + ipProblems(e.ip), 0) + (data.atem ? ipProblems(data.atem.ip) : 0) + videohub
-  return { atem, videohub, network }
+const lastTabKey = (id: string) => `patchbook.tab.${id}`
+
+/** Where a show opens when the link names no tab: the tab you last used, else its first device. */
+function openingTab(id: string, data: ProjectData): Tab {
+  try {
+    const saved = localStorage.getItem(lastTabKey(id))
+    if (TABS.includes(saved as Tab)) return saved as Tab
+  } catch {
+    // Storage unavailable (private browsing): fall through.
+  }
+  if (data.atem) return 'atem'
+  if (data.videohub) return 'videohub'
+  return data.network.length ? 'network' : 'atem'
 }
 
-export function ProjectView({ id, tab }: { id: string; tab: Tab }) {
+function issueSelector(target: IssueTarget): string {
+  switch (target.kind) {
+    case 'atem-port':
+      return `input[data-grid="atem-${target.list}"][data-row="${target.index}"][data-col="${target.field}"]`
+    case 'device-ip':
+      return 'input[data-field="device-ip"]'
+    case 'network-ip':
+      return `input[data-grid="net"][data-key="${target.key}"]`
+  }
+}
+
+/** Scroll to the field a problem is about and focus it. */
+function showIssue(target: IssueTarget) {
+  // Next frame: the tab may only just have switched.
+  requestAnimationFrame(() => {
+    const field = document.querySelector<HTMLInputElement>(issueSelector(target))
+    // On phones the field can be in a sheet or the other list; the top of the tab is the best we can do.
+    if (!field) return window.scrollTo({ top: 0 })
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    field.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' })
+    field.focus({ preventScroll: true })
+  })
+}
+
+export function ProjectView({ id, tab }: { id: string; tab: Tab | null }) {
   const { project, loadError, status, conflict, update, resolveConflict } = useProject(id)
   const [notices, setNotices] = useState(() => importNotices.get(id) ?? [])
   // Pinned table headings sit just under the header, whose height changes when it wraps.
@@ -48,6 +75,22 @@ export function ProjectView({ id, tab }: { id: string; tab: Tab }) {
     return () => observer.disconnect()
   }, [loaded])
 
+  // Remember the tab per show, and open a show without a tab in its link where you left off.
+  useEffect(() => {
+    if (!tab) return
+    try {
+      localStorage.setItem(lastTabKey(id), tab)
+    } catch {
+      // Not remembered; nothing else depends on it.
+    }
+  }, [id, tab])
+  useEffect(() => {
+    if (!tab && project) window.location.replace(href.project(id, openingTab(id, project.data)))
+  }, [id, tab, project])
+
+  // The tab whose problem list is open (from clicking its badge).
+  const [checking, setChecking] = useState<Tab | null>(null)
+
   if (loadError) {
     return (
       <div className="page">
@@ -61,7 +104,10 @@ export function ProjectView({ id, tab }: { id: string; tab: Tab }) {
   if (!project) return <div className="page loading muted">Loading…</div>
 
   const { data } = project
-  const issues = tabIssues(data)
+  const allIssues = projectIssues(data)
+  const issuesOn = (t: Tab): ProjectIssue[] => allIssues.filter((i) => i.tab === t)
+  const listed = checking && checking === tab ? issuesOn(checking) : []
+  const subnetSuggestion = suggestedSubnet(data)
 
   return (
     <div className="page">
@@ -78,11 +124,22 @@ export function ProjectView({ id, tab }: { id: string; tab: Tab }) {
         </div>
         <nav className="tabs" aria-label="Project sections">
           {TABS.map((t) => (
-            <a key={t} href={href.project(id, t)} className={t === tab ? 'active' : undefined} aria-current={t === tab ? 'page' : undefined}>
+            <a
+              key={t}
+              href={href.project(id, t)}
+              className={t === tab ? 'active' : undefined}
+              aria-current={t === tab ? 'page' : undefined}
+              // The badge opens the list of problems on that tab (the link still switches to it).
+              onClick={(e) => (e.target as Element).closest('.badge') && setChecking(t)}
+            >
               {TAB_LABELS[t]}
               {t === 'atem' && data.atem && <span className="tab-dot" aria-hidden />}
               {t === 'videohub' && data.videohub && <span className="tab-dot" aria-hidden />}
-              {!!issues[t] && <span className="badge" title={`${issues[t]} to check`}>{issues[t]}</span>}
+              {issuesOn(t).length > 0 && (
+                <span className="badge" title="Show what to check">
+                  {issuesOn(t).length}
+                </span>
+              )}
             </a>
           ))}
         </nav>
@@ -123,6 +180,38 @@ export function ProjectView({ id, tab }: { id: string; tab: Tab }) {
               </button>
             </div>
           </div>
+        )}
+        {subnetSuggestion && (
+          <div className="banner info">
+            <span>
+              Every device in this show is on <strong className="figures">{subnetSuggestion}</strong>, but the show's subnet is{' '}
+              <span className="figures">{data.subnet}</span>.
+            </span>
+            <button type="button" className="primary" onClick={() => update((d) => (d.subnet = subnetSuggestion))}>
+              Use {subnetSuggestion}
+            </button>
+          </div>
+        )}
+        {listed.length > 0 && (
+          <section className="card issues" aria-label="To check">
+            <header className="card-head">
+              <h3>
+                {listed.length} to check
+              </h3>
+              <button type="button" className="ghost" onClick={() => setChecking(null)}>
+                Done
+              </button>
+            </header>
+            <ul>
+              {listed.map((issue, i) => (
+                <li key={i}>
+                  <button type="button" className="issue" onClick={() => showIssue(issue.target)}>
+                    {issue.text}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
         {notices.length > 0 && (
           <div className="banner info">

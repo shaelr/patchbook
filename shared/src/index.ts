@@ -1,4 +1,5 @@
 export * from './catalog.ts'
+export * from './checks.ts'
 export * from './devices.ts'
 export * from './ip.ts'
 export * from './labels.ts'

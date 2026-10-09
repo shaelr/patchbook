@@ -2,11 +2,11 @@ import { CUSTOM_MODEL, findAtemModel, findVideohubModel } from './catalog.ts'
 import { compareIps, DEFAULT_IP_RANGES, DEFAULT_SUBNET, rangeForIp } from './ip.ts'
 import type { Atem, AtemInput, AtemOutput, IpRange, ProjectData, Videohub, VideohubPort } from './schema.ts'
 
-export function newProjectData(name: string): ProjectData {
+export function newProjectData(name: string, subnet: string = DEFAULT_SUBNET): ProjectData {
   return {
     name,
     notes: '',
-    subnet: DEFAULT_SUBNET,
+    subnet,
     ipRanges: structuredClone(DEFAULT_IP_RANGES),
     atem: null,
     videohub: null,

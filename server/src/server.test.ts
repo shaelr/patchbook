@@ -159,6 +159,11 @@ describe('API', () => {
     const list = (await app.inject({ method: 'GET', url: '/api/projects' })).json<unknown[]>()
     assert.equal(list.length, 2)
 
+    const onSubnet = await app.inject({ method: 'POST', url: '/api/projects', payload: { name: 'Arena', subnet: '10.20.30.0/24' } })
+    assert.equal(onSubnet.json<Project>().data.subnet, '10.20.30.0/24')
+    const badSubnet = await app.inject({ method: 'POST', url: '/api/projects', payload: { name: 'Arena', subnet: '10.20.30' } })
+    assert.equal(badSubnet.statusCode, 400)
+
     assert.equal((await app.inject({ method: 'DELETE', url: `/api/projects/${dup.id}` })).statusCode, 204)
     assert.equal((await app.inject({ method: 'GET', url: `/api/projects/${dup.id}` })).statusCode, 404)
   })

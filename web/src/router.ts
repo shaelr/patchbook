@@ -5,21 +5,22 @@ export type Tab = (typeof TABS)[number]
 
 export type Route =
   | { page: 'list' }
-  | { page: 'project'; id: string; tab: Tab }
+  /** tab is null when the link names no tab: the project opens where you left off. */
+  | { page: 'project'; id: string; tab: Tab | null }
   | { page: 'print'; id: string }
 
 export function parseRoute(hash: string): Route {
   const [, page, id, sub] = hash.replace(/^#/, '').split('/')
   if (page === 'p' && id) {
     if (sub === 'print') return { page: 'print', id }
-    return { page: 'project', id, tab: TABS.includes(sub as Tab) ? (sub as Tab) : 'atem' }
+    return { page: 'project', id, tab: TABS.includes(sub as Tab) ? (sub as Tab) : null }
   }
   return { page: 'list' }
 }
 
 export const href = {
   list: () => '#/',
-  project: (id: string, tab: Tab = 'atem') => `#/p/${id}/${tab}`,
+  project: (id: string, tab?: Tab) => (tab ? `#/p/${id}/${tab}` : `#/p/${id}`),
   print: (id: string) => `#/p/${id}/print`,
 }
 

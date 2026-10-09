@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ATEM_MODELS, CUSTOM_MODEL, VIDEOHUB_MODELS, type ProjectSummary } from '@patchbook/shared'
+import { ATEM_MODELS, CUSTOM_MODEL, DEFAULT_SUBNET, parseSubnet, VIDEOHUB_MODELS, type ProjectSummary } from '@patchbook/shared'
 import { api, importNotices, type ImportResponse } from '../api.ts'
 import { ActionMenu, type MenuAction } from '../components/ActionMenu.tsx'
 import { confirmDialog, promptDialog } from '../components/Dialogs.tsx'
@@ -18,6 +18,8 @@ export function ProjectList() {
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
+  const [subnet, setSubnet] = useState(DEFAULT_SUBNET)
+  const subnetValid = parseSubnet(subnet.trim()) !== null
   const xlsxInput = useRef<HTMLInputElement>(null)
   const jsonInput = useRef<HTMLInputElement>(null)
   const phone = useIsPhone()
@@ -40,8 +42,8 @@ export function ProjectList() {
 
   const create = () =>
     run(async () => {
-      if (!name.trim()) return
-      const project = await api.create(name.trim())
+      if (!name.trim() || !subnetValid) return
+      const project = await api.create(name.trim(), subnet.trim())
       navigate(href.project(project.id))
     })
 
@@ -152,7 +154,16 @@ export function ProjectList() {
               <span>Project name</span>
               <input autoFocus value={name} onChange={(e) => setName(e.target.value)} />
             </label>
-            <button type="submit" className="primary" disabled={!name.trim()}>
+            <label className="field subnet-field">
+              <span>Subnet</span>
+              <input
+                className={`figures ${subnetValid ? '' : 'is-error'}`}
+                value={subnet}
+                inputMode="decimal"
+                onChange={(e) => setSubnet(e.target.value.replace(/[^\d./]/g, ''))}
+              />
+            </label>
+            <button type="submit" className="primary" disabled={!name.trim() || !subnetValid}>
               Create
             </button>
             <button type="button" className="ghost" onClick={() => setCreating(false)}>

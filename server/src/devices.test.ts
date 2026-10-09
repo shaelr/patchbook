@@ -5,6 +5,7 @@ import { Enums } from 'atem-connection'
 import type { VideohubReading } from '@patchbook/shared'
 import { buildApp } from './app.ts'
 import { atemTimeoutMessage, atemWriteProblems, readingFromState, sendAtemNames } from './devices/atem.ts'
+import { foundDeviceFrom } from './devices/discovery.ts'
 import { DeviceError } from './devices/errors.ts'
 import { parseBlocks, readVideohub, writeVideohub } from './devices/videohub.ts'
 import { ProjectStore } from './store.ts'
@@ -150,6 +151,30 @@ describe('ATEM state mapping', () => {
     assert.match(message, /^No answer from an ATEM at 192\.168\.10\.10 \(timed out after 8s\)/)
     assert.match(message, /out of connection slots/)
     assert.match(message, /Companion holds one/)
+  })
+})
+
+describe('network discovery', () => {
+  test('a Bonjour announcement becomes a found device with its class, name and IPv4 address', () => {
+    const atem = foundDeviceFrom({
+      name: 'ATEM 2 M/E Constellation 4K',
+      addresses: ['fe80::1', '169.254.3.4', '10.20.30.10'],
+      txt: { txtvers: '1', class: 'AtemSwitcher', 'device name': 'Main Switcher', 'unique id': 'abc' },
+    })
+    assert.deepEqual(atem, { id: 'abc', name: 'Main Switcher', deviceClass: 'AtemSwitcher', kind: 'atem', ip: '10.20.30.10' })
+    const hub = foundDeviceFrom({ name: 'Smart Videohub 12x12', addresses: ['10.20.30.12'], txt: { class: 'Videohub' } })
+    assert.equal(hub?.kind, 'videohub')
+    assert.equal(hub?.name, 'Smart Videohub 12x12', 'falls back to the service name')
+    assert.equal(hub?.id, 'Smart Videohub 12x12@10.20.30.12')
+    assert.equal(foundDeviceFrom({ name: 'HyperDeck', addresses: ['10.20.30.30'], txt: { class: 'HyperDeck' } })?.kind, 'other')
+    assert.equal(foundDeviceFrom({ name: 'IPv6 only', addresses: ['fe80::1'], txt: {} }), null)
+  })
+
+  test('the app lists what discovery found', async () => {
+    const found = [{ id: 'abc', name: 'Main Switcher', deviceClass: 'AtemSwitcher', kind: 'atem' as const, ip: '10.20.30.10' }]
+    const app = buildApp({ store: new ProjectStore(':memory:'), devices: { findDevices: async () => found } })
+    const res = await app.inject({ method: 'GET', url: '/api/devices/found' })
+    assert.deepEqual(res.json(), { devices: found })
   })
 })
 
