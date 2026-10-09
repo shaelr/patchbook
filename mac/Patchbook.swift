@@ -1,5 +1,6 @@
 // Patchbook menu bar app: starts the Patchbook server (Node) when opened, stops it on quit, and puts
 // the useful bits in the menu bar: open in the browser, the address for the iPad/phone, start at login.
+// Opening the app (or opening it again while it runs) shows Patchbook in the browser, except at login.
 // Built by mac/build.sh with plain `swiftc` (no Xcode project).
 
 import AppKit
@@ -245,10 +246,22 @@ func localIPv4Addresses() -> [LocalAddress] {
 
 enum LoginItem {
   static let label = "com.patchbook.menubar"
+  /// Passed by the login item so the app starts quietly instead of opening the browser.
+  static let launchFlag = "--at-login"
   static var plistURL: URL {
     FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/LaunchAgents/\(label).plist")
   }
   static var isEnabled: Bool { FileManager.default.fileExists(atPath: plistURL.path) }
+  static var launchedAtLogin: Bool { CommandLine.arguments.contains(launchFlag) }
+  private static var arguments: [String] { ["/usr/bin/open", "-a", Bundle.main.bundlePath, "--args", launchFlag] }
+
+  /// Rewrite a login item made by an older version (or for an app that has moved) to the current arguments.
+  static func refresh() {
+    guard isEnabled, let data = try? Data(contentsOf: plistURL),
+          let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+          plist["ProgramArguments"] as? [String] != arguments else { return }
+    set(true)
+  }
 
   static func set(_ enabled: Bool) {
     if !enabled {
@@ -257,7 +270,7 @@ enum LoginItem {
     }
     let plist: [String: Any] = [
       "Label": label,
-      "ProgramArguments": ["/usr/bin/open", "-a", Bundle.main.bundlePath],
+      "ProgramArguments": arguments,
       "RunAtLoad": true,
     ]
     try? FileManager.default.createDirectory(at: plistURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -273,6 +286,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var statusItem: NSStatusItem!
   private var server: ServerController!
   private let menu = NSMenu()
+  /// Set when the user opened the app: show Patchbook in the browser once the server is up,
+  /// or say why it couldn't start. A launch at login leaves it unset and stays in the menu bar.
+  private var openWhenUp = false
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     // A release build carries Patchbook inside the app (Resources/patchbook); a local build
@@ -285,13 +301,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
       root = URL(fileURLWithPath: Bundle.main.object(forInfoDictionaryKey: "PatchbookRoot") as? String ?? "")
     }
     server = ServerController(root: root)
-    server.onChange = { [weak self] in self?.updateIcon() }
+    server.onChange = { [weak self] in
+      self?.updateIcon()
+      self?.showIfWaiting()
+    }
 
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     menu.delegate = self
     statusItem.menu = menu
     updateIcon()
+    LoginItem.refresh()
+    openWhenUp = !LoginItem.launchedAtLogin
     server.start()
+    showIfWaiting() // start() can fail straight away (e.g. Node not found)
+  }
+
+  // Opened again while running (Finder, Dock, Spotlight): there's no window, so show Patchbook.
+  func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    openWhenUp = true
+    switch server.state {
+    case .stopped, .failed: server.start()
+    default: break
+    }
+    showIfWaiting()
+    return false
+  }
+
+  /// Once the user has asked to see Patchbook: open it when the server is up, or explain a failure.
+  private func showIfWaiting() {
+    guard openWhenUp else { return }
+    switch server.state {
+    case .running, .external:
+      openWhenUp = false
+      openInBrowser()
+    case .failed(let reason):
+      openWhenUp = false
+      showStartFailure(reason)
+    case .stopped, .starting:
+      break
+    }
+  }
+
+  private func showStartFailure(_ reason: String) {
+    let alert = NSAlert()
+    alert.alertStyle = .warning
+    alert.messageText = "Patchbook couldn't start"
+    alert.informativeText = reason
+    alert.addButton(withTitle: "OK")
+    alert.addButton(withTitle: "Show Log")
+    NSApp.activate(ignoringOtherApps: true) // a menu bar app isn't frontmost; bring the alert forward
+    if alert.runModal() == .alertSecondButtonReturn { showLog() }
   }
 
   // Quitting (menu, Apple Event, logout): stop the server first, then let the app exit.
