@@ -1,6 +1,7 @@
 import {
   applyVideohubReading,
   videohubWritePlan,
+  videohubFactoryPlan,
   changedPortCount,
   compareVideohub,
   findVideohubModel,
@@ -133,6 +134,18 @@ export function VideohubTab({ data, update }: { data: ProjectData; update: Proje
           sending={sender.sending}
           sendable={new Set(device.reading ? videohubWritePlan(hub, device.reading, 'all').ports.map((p) => `${p.side}:${p.n}`) : [])}
           onSend={(keys) => device.state?.status === 'done' && sender.send(device.state.ip, videohubWritePlan(hub, device.state.reading, keys))}
+          resetCount={device.reading ? videohubFactoryPlan(device.reading).ports.length : 0}
+          onReset={() => {
+            if (device.state?.status !== 'done') return
+            const plan = videohubFactoryPlan(device.state.reading)
+            const n = plan.ports.length
+            sender.send(device.state.ip, plan, {
+              title: 'Set all labels to default?',
+              message: `${n} port${n === 1 ? '' : 's'} on the Videohub at ${device.state.ip} go back to default labels (Input 1, Output 1…) straight away. The project isn't changed.`,
+              confirmLabel: 'Set to default',
+              done: `Set ${n} label${n === 1 ? '' : 's'} to default on the Videohub`,
+            })
+          }}
           onApply={(keys, adoptModel) => {
             const reading = device.reading!
             const after = applyVideohubReading(hub, reading, keys, adoptModel)

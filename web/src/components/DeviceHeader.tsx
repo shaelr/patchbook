@@ -19,7 +19,7 @@ interface Props<K extends string> {
   ipIssues: IpIssue[]
   onIp: (ip: string) => void
   onRemove: () => void
-  /** Read names from the device at the entered IP. */
+  /** Open Sync with device for the entered IP: compare, copy names in, or send them. */
   onRead: () => void
 }
 
@@ -51,7 +51,7 @@ export function DeviceHeader<K extends string>(props: Props<K>) {
       <div className="device-actions">
         {!phone && (
           <button type="button" onClick={props.onRead} disabled={!canRead} title={canRead ? undefined : 'Enter the IP address first'}>
-            Read from device
+            Sync with device…
           </button>
         )}
         <button type="button" className="danger ghost" onClick={props.onRemove}>
@@ -74,7 +74,7 @@ export function DeviceHeader<K extends string>(props: Props<K>) {
           </span>
         </div>
         <button type="button" onClick={props.onRead} disabled={!canRead}>
-          Read
+          Sync
         </button>
         <button type="button" onClick={() => setEditing(true)}>
           Edit

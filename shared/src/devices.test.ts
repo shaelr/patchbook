@@ -3,6 +3,7 @@ import { describe, test } from 'node:test'
 import {
   applyAtemReading,
   applyVideohubReading,
+  atemFactoryPlan,
   atemFromReading,
   atemWritePlan,
   buildAtem,
@@ -11,6 +12,7 @@ import {
   changedPortCount,
   compareVideohub,
   diffCounts,
+  videohubFactoryPlan,
   videohubWritePlan,
   type AtemReading,
   type VideohubReading,
@@ -44,8 +46,12 @@ describe('compare with device', () => {
     assert.equal(byKey.get('in:1')!.status, 'same')
     assert.equal(byKey.get('in:2')!.status, 'different')
     assert.equal(byKey.get('in:3')!.status, 'same', 'default Camera 3 / CAM3 on both')
-    assert.equal(byKey.get('aux:1')!.status, 'not-set', 'project still has the default; the device keeps Program')
-    assert.deepEqual(byKey.get('aux:1')!.project, { name: 'Output 1', label: 'OUT1' }, 'shown as the default it stands for')
+    assert.equal(byKey.get('aux:1')!.status, 'different', 'a default name in the project is a name like any other')
+    assert.deepEqual(byKey.get('aux:1')!.project, { name: 'Output 1', label: 'OUT1' })
+    project.outputs[0]!.long = ''
+    const blank = compareAtem(project, atemReading()).find((r) => r.key === 'aux:1')!
+    assert.equal(blank.status, 'not-set', 'blank: the device keeps Program')
+    assert.deepEqual(blank.project, { name: 'Output 1', label: 'OUT1' }, 'shown as the default it stands for')
 
     const bigger = buildAtem('constellation-4k-2me', null, null)
     const counts = diffCounts(compareAtem(bigger, atemReading()))
@@ -121,7 +127,9 @@ describe('compare with device', () => {
     }
     const project = buildVideohub('vh-10x10-12g', null, null)
     const counts = diffCounts(compareVideohub(project, reading))
-    assert.deepEqual(counts, { same: 19, different: 0, 'not-set': 1, 'project-only': 0, 'device-only': 0 })
+    assert.deepEqual(counts, { same: 19, different: 1, 'not-set': 0, 'project-only': 0, 'device-only': 0 })
+    project.inputs[0]!.label = ''
+    assert.equal(compareVideohub(project, reading)[0]!.status, 'not-set')
     assert.equal(applyVideohubReading(project, reading, 'all', false).inputs[0]!.label, 'Cam 1 ISO')
   })
 })
@@ -146,13 +154,41 @@ describe('send to device: write plan', () => {
     assert.equal(atemWritePlan(project, atemReading(), new Set(['aux:1'])).ports.length, 1, 'selection respected')
   })
 
-  test("never overwrites the device's names with the project's default names", () => {
+  test('default names in the project are sent; blank ones never are', () => {
     const project = buildAtem('constellation-4k-1me', null, null) // all defaults
     const plan = atemWritePlan(project, atemReading(), 'all') // device has Laptop A, Lectern, Program
-    assert.deepEqual(plan.ports, [])
+    assert.deepEqual(plan.ports, [
+      { kind: 'in', n: 1, long: 'Camera 1', short: 'CAM1' },
+      { kind: 'in', n: 2, long: 'Camera 2', short: 'CAM2' },
+      { kind: 'aux', n: 1, long: 'Output 1', short: 'OUT1' },
+    ])
+    for (const p of [...project.inputs, ...project.outputs]) p.long = ''
+    assert.deepEqual(atemWritePlan(project, atemReading(), 'all').ports, [], 'blank: the ATEM keeps its names')
+
     const hub = buildVideohub('vh-10x10-12g', null, null)
     const reading: VideohubReading = { modelName: 'X', model: 'vh-10x10-12g', counts: { inputs: 10, outputs: 10 }, inputs: hub.inputs.map((p) => ({ ...p, label: p.n === 1 ? 'Cam 1 ISO' : p.label })), outputs: hub.outputs }
-    assert.deepEqual(videohubWritePlan(hub, reading, 'all').ports, [], 'default "Input 1" does not replace "Cam 1 ISO"')
+    assert.deepEqual(videohubWritePlan(hub, reading, 'all').ports, [{ side: 'in', n: 1, label: 'Input 1' }])
+    hub.inputs[0]!.label = ''
+    assert.deepEqual(videohubWritePlan(hub, reading, 'all').ports, [], 'blank: "Cam 1 ISO" stays')
+  })
+
+  test('set all to default: factory names for every port not already on them, device names kept for undo', () => {
+    const plan = atemFactoryPlan(atemReading())
+    assert.deepEqual(plan.ports, [
+      { kind: 'in', n: 1, long: 'Camera 1', short: 'CAM1' },
+      { kind: 'in', n: 2, long: 'Camera 2', short: 'CAM2' },
+      { kind: 'aux', n: 1, long: 'Output 1', short: 'OUT1' },
+    ])
+    const renamed = atemReading()
+    renamed.inputs[9] = { n: 10, long: 'Spare', short: 'SPAR' }
+    assert.deepEqual(atemFactoryPlan(renamed).ports[2], { kind: 'in', n: 10, long: 'Camera 10', short: 'CM10' })
+    assert.deepEqual(plan.undo[0], { kind: 'in', n: 1, long: 'Laptop A', short: 'LAPA' })
+
+    const hub = buildVideohub('vh-10x10-12g', null, null)
+    const reading: VideohubReading = { modelName: 'X', model: 'vh-10x10-12g', counts: { inputs: 10, outputs: 10 }, inputs: hub.inputs.map((p) => ({ ...p, label: p.n === 1 ? 'Cam 1 ISO' : p.label })), outputs: hub.outputs }
+    const hubPlan = videohubFactoryPlan(reading)
+    assert.deepEqual(hubPlan.ports, [{ side: 'in', n: 1, label: 'Input 1' }])
+    assert.deepEqual(hubPlan.undo, [{ side: 'in', n: 1, label: 'Cam 1 ISO' }])
   })
 
   test('ATEM: names the switcher cannot take are reported', () => {

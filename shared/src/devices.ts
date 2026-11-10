@@ -2,11 +2,9 @@ import { CUSTOM_MODEL } from './catalog.ts'
 import { atemLabelIssues, autoShortName, LABEL_ISSUE_TEXT, resolveShort } from './labels.ts'
 import {
   atemDefaultName,
-  atemPortIsDefault,
   buildAtem,
   buildVideohub,
   videohubDefaultName,
-  videohubPortIsDefault,
   type AtemCounts,
   type VideohubCounts,
 } from './project.ts'
@@ -48,8 +46,8 @@ export interface VideohubReading {
 }
 
 /**
- * "not-set": the project has no name of its own for the port (blank, or still the default), so the
- * device keeps whatever it has. Shown, but never counted as a difference to send.
+ * "not-set": the project's Name (or Videohub label) is blank, so the device keeps whatever it has.
+ * Shown, but never sent. A port that has a default name ("Camera 5") is set, and is sent like any other.
  */
 export type DiffStatus = 'same' | 'different' | 'not-set' | 'project-only' | 'device-only'
 
@@ -87,7 +85,7 @@ export function compareAtem(project: Atem, reading: AtemReading): PortDiff[] {
       // A blank Name stands for the default name, as the tables show it.
       const name = p ? p.long || atemDefaultName(project.model, kind, n) : ''
       const label = p ? p.short ?? autoShortName(name) : ''
-      const notSet = !!p && atemPortIsDefault(project.model, p)
+      const notSet = !!p && p.long.trim() === ''
       rows.push({
         key: atemKey(kind, n),
         side,
@@ -116,7 +114,7 @@ export function compareVideohub(project: Videohub, reading: VideohubReading): Po
         label: String(n),
         project: p ? { name } : null,
         device: d ? { name: d.label } : null,
-        status: statusOf(p, d, !!p && !!d && name === d.label, !!p && videohubPortIsDefault(side, p)),
+        status: statusOf(p, d, !!p && !!d && name === d.label, !!p && p.label.trim() === ''),
       })
     }
   }
@@ -211,7 +209,7 @@ export interface WritePlan<P> {
 
 const selected = (keys: Set<string> | 'all', key: string) => keys === 'all' || keys.has(key)
 
-/** Which project names to send to the ATEM: selected ports that differ, are set in the project, and exist on both sides. */
+/** Which project names to send to the ATEM: selected ports that differ, aren't blank in the project, and exist on both sides. */
 export function atemWritePlan(project: Atem, reading: AtemReading, keys: Set<string> | 'all'): WritePlan<AtemNameWrite> {
   const plan: WritePlan<AtemNameWrite> = { ports: [], problems: [], undo: [] }
   for (const row of compareAtem(project, reading)) {
@@ -221,9 +219,8 @@ export function atemWritePlan(project: Atem, reading: AtemReading, keys: Set<str
     const port = kind === 'in' ? project.inputs.find((p) => p.n === n) : project.outputs.find((p) => p.n === n)
     const device = kind === 'in' ? reading.inputs.find((p) => p.n === n) : reading.outputs.find((p) => p.n === n)
     if (!port || !device) continue
-    // Never send a port that isn't set in the project (blank or default): it would overwrite the
-    // device's real name with a generic one. compareAtem already marks these "not-set".
-    if (atemPortIsDefault(project.model, port)) continue
+    // A blank Name means "not set": the device keeps its name. compareAtem already marks these "not-set".
+    if (port.long.trim() === '') continue
     const name = `${kind === 'in' ? 'Input' : 'Output'} ${n}`
     for (const issue of atemLabelIssues(port)) plan.problems.push(`${name}: ${LABEL_ISSUE_TEXT[issue]}`)
     plan.ports.push({ kind, n, long: port.long, short: resolveShort(port) })
@@ -242,9 +239,38 @@ export function videohubWritePlan(project: Videohub, reading: VideohubReading, k
     const port = (side === 'in' ? project.inputs : project.outputs).find((p) => p.n === n)
     const device = (side === 'in' ? reading.inputs : reading.outputs).find((p) => p.n === n)
     if (!port || !device) continue
-    if (videohubPortIsDefault(side, port)) continue
+    if (port.label.trim() === '') continue
     plan.ports.push({ side, n, label: port.label })
     plan.undo.push({ side, n, label: device.label })
+  }
+  return plan
+}
+
+/** Factory names for every ATEM port that isn't already on them ("Set all to default"). The project isn't involved. */
+export function atemFactoryPlan(reading: AtemReading): WritePlan<AtemNameWrite> {
+  const plan: WritePlan<AtemNameWrite> = { ports: [], problems: [], undo: [] }
+  const factory = new Set(reading.factoryDefaults)
+  const ports = [...reading.inputs.map((p) => ({ ...p, kind: 'in' as const })), ...reading.outputs]
+  for (const p of ports) {
+    const long = atemDefaultName(reading.model, p.kind, p.n)
+    const short = autoShortName(long)
+    if (factory.has(atemKey(p.kind, p.n)) || (p.long === long && p.short === short)) continue
+    plan.ports.push({ kind: p.kind, n: p.n, long, short })
+    plan.undo.push({ kind: p.kind, n: p.n, long: p.long, short: p.short })
+  }
+  return plan
+}
+
+/** Default labels ("Input 1", "Output 1") for every Videohub port that doesn't already have them. */
+export function videohubFactoryPlan(reading: VideohubReading): WritePlan<VideohubLabelWrite> {
+  const plan: WritePlan<VideohubLabelWrite> = { ports: [], problems: [], undo: [] }
+  for (const side of ['in', 'out'] as const) {
+    for (const p of side === 'in' ? reading.inputs : reading.outputs) {
+      const label = videohubDefaultName(side, p.n)
+      if (p.label === label) continue
+      plan.ports.push({ side, n: p.n, label })
+      plan.undo.push({ side, n: p.n, label: p.label })
+    }
   }
   return plan
 }

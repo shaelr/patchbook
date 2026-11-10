@@ -13,13 +13,21 @@ interface Options<P, R> {
   restorable?: (port: P) => boolean
 }
 
+/** Wording for the confirm and the undo toast when a send isn't the project's names (e.g. factory names). */
+export interface SendWording {
+  title: string
+  message: string
+  confirmLabel: string
+  done: string
+}
+
 /** Send project names to a device: check, confirm, write, refresh, and offer undo for a few seconds. */
 export function useDeviceSend<P, R>({ kind, unit, write, onReading, restorable = () => true }: Options<P, R>) {
   const [sending, setSending] = useState(false)
   const [undo, setUndo] = useState<{ ip: string; ports: P[]; message: string } | null>(null)
   const plural = (n: number) => `${n} ${unit}${n === 1 ? '' : 's'}`
 
-  const send = async (ip: string, plan: WritePlan<P>) => {
+  const send = async (ip: string, plan: WritePlan<P>, wording?: SendWording) => {
     if (plan.problems.length) {
       await alertDialog({
         title: `Can't send these ${unit}s yet`,
@@ -30,20 +38,24 @@ export function useDeviceSend<P, R>({ kind, unit, write, onReading, restorable =
     if (!plan.ports.length) {
       await alertDialog({
         title: 'Nothing to send',
-        message: `The selected ports already match the ${kind}, or aren't set in the project (so the ${kind} keeps its ${unit}s).`,
+        message: `The selected ports already match the ${kind}, or are blank in the project (so the ${kind} keeps its ${unit}s).`,
       })
       return
     }
-    const ok = await confirmDialog({
-      title: `Send ${plural(plan.ports.length)} to the ${kind}?`,
-      message: `The ${kind} at ${ip} will switch to the project's ${unit}s on these ports straight away${kind === 'ATEM' ? ': panels, multiviews and ATEM Software Control update immediately' : ''}.`,
-      confirmLabel: `Send to ${kind}`,
-    })
+    const ok = await confirmDialog(
+      wording
+        ? { title: wording.title, message: wording.message, confirmLabel: wording.confirmLabel, danger: true }
+        : {
+            title: `Send ${plural(plan.ports.length)} to the ${kind}?`,
+            message: `The ${kind} at ${ip} will switch to the project's ${unit}s on these ports straight away${kind === 'ATEM' ? ': panels, multiviews and ATEM Software Control update immediately' : ''}.`,
+            confirmLabel: `Send to ${kind}`,
+          },
+    )
     if (!ok) return
     setSending(true)
     try {
       onReading(await write(ip, plan.ports))
-      setUndo({ ip, ports: plan.undo.filter(restorable), message: `Sent ${plural(plan.ports.length)} to the ${kind}` })
+      setUndo({ ip, ports: plan.undo.filter(restorable), message: wording?.done ?? `Sent ${plural(plan.ports.length)} to the ${kind}` })
     } catch (error) {
       await alertDialog({ title: `Not sent to the ${kind}`, message: (error as Error).message })
     } finally {

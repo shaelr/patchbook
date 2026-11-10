@@ -22,8 +22,12 @@ interface Props<R> {
   onSend: (keys: Set<string>) => void
   /** A send is in progress. */
   sending: boolean
-  /** Port keys whose project names can be sent (differ, and the project has a name of its own). */
+  /** Port keys whose project names can be sent (differ, and aren't blank in the project). */
   sendable: Set<string>
+  /** Set every port on the device to its factory name. */
+  onReset: () => void
+  /** Ports on the device that aren't on their factory names. */
+  resetCount: number
   onRetry: () => void
   onClose: () => void
 }
@@ -36,20 +40,25 @@ const STATUS_TEXT: Record<DiffStatus, string> = {
   'device-only': 'Only on device',
 }
 
-/** Read-only comparison of the project with what the device reported, with "use device names". */
-export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismatch, deviceName, onApply, onSend, sending, sendable, onRetry, onClose }: Props<R>) {
+/**
+ * Sync the project with a device: compare port by port, copy device names into the project, send the
+ * project's names to the device, or set the device back to factory names.
+ */
+export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismatch, deviceName, onApply, onSend, sending, sendable, onReset, resetCount, onRetry, onClose }: Props<R>) {
   const counts = useMemo(() => diffCounts(rows), [rows])
-  const changeable = useMemo(
-    () => rows.filter((r) => r.status === 'different' || r.status === 'not-set' || (r.status === 'device-only' && r.device)),
-    [rows],
-  )
+  // Ports that differ and have something on the device to copy; these start selected.
+  const changeable = useMemo(() => rows.filter((r) => r.status !== 'same' && r.device), [rows])
   const [onlyDifferences, setOnlyDifferences] = useState(true)
   const [selected, setSelected] = useState<Set<string>>(() => new Set(changeable.map((r) => r.key)))
   const [adoptModel, setAdoptModel] = useState(true)
-  // Selected ports that will actually be sent; selected differences without a project name of their own won't be.
+  // "Differences only" decides what can be picked: just the differences, or every port on the device.
+  const visible = onlyDifferences ? rows.filter((r) => r.status !== 'same') : rows
+  const selectable = visible.filter((r) => r.device)
+  // Selected ports that will actually be sent: ports that match already, or are blank in the project, aren't.
   const toSend = [...selected].filter((k) => sendable.has(k))
-  const notSent = [...selected].filter((k) => !sendable.has(k) && rows.some((r) => r.key === k && (r.status === 'different' || r.status === 'not-set'))).length
+  const blankSelected = rows.filter((r) => r.status === 'not-set' && selected.has(r.key)).length
   const hasLabels = kind === 'ATEM'
+  const unit = hasLabels ? 'name' : 'label'
 
   // Re-select all differences whenever a new reading arrives.
   useEffect(() => setSelected(new Set(changeable.map((r) => r.key))), [changeable])
@@ -60,7 +69,11 @@ export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismat
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const visible = onlyDifferences ? rows.filter((r) => r.status !== 'same') : rows
+  const showOnlyDifferences = (on: boolean) => {
+    setOnlyDifferences(on)
+    // Hidden ports can't stay selected.
+    if (on) setSelected((prev) => new Set([...prev].filter((k) => rows.some((r) => r.key === k && r.status !== 'same'))))
+  }
   const toggle = (key: string) =>
     setSelected((prev) => {
       const next = new Set(prev)
@@ -68,15 +81,15 @@ export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismat
       else next.add(key)
       return next
     })
-  const allSelected = changeable.length > 0 && changeable.every((r) => selected.has(r.key))
+  const allSelected = selectable.length > 0 && selectable.every((r) => selected.has(r.key))
   const willAdopt = !!modelMismatch && adoptModel
 
   return createPortal(
     <div className="sheet-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="compare-sheet" role="dialog" aria-label={`Compare with ${kind}`}>
+      <div className="compare-sheet" role="dialog" aria-label={`Sync with ${kind}`}>
         <header className="compare-head">
           <div>
-            <span className="edit-sheet-kind">Compare with device</span>
+            <span className="edit-sheet-kind">Sync with device</span>
             <h3>
               {deviceName} <span className="muted figures">{state.ip}</span>
             </h3>
@@ -111,7 +124,7 @@ export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismat
               {counts['project-only'] > 0 && <span className="pill-status project-only">{counts['project-only']} only in project</span>}
               <span className="muted small">Read {state.at.toLocaleTimeString()}</span>
               <label className="toggle compare-filter">
-                <input type="checkbox" checked={onlyDifferences} onChange={(e) => setOnlyDifferences(e.target.checked)} />
+                <input type="checkbox" checked={onlyDifferences} onChange={(e) => showOnlyDifferences(e.target.checked)} />
                 Differences only
               </label>
             </div>
@@ -138,10 +151,10 @@ export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismat
                       <th className="check">
                         <input
                           type="checkbox"
-                          aria-label="Select all differences"
+                          aria-label={onlyDifferences ? 'Select all differences' : 'Select all ports'}
                           checked={allSelected}
-                          disabled={changeable.length === 0}
-                          onChange={() => setSelected(allSelected ? new Set() : new Set(changeable.map((r) => r.key)))}
+                          disabled={selectable.length === 0}
+                          onChange={() => setSelected(allSelected ? new Set() : new Set(selectable.map((r) => r.key)))}
                         />
                       </th>
                       <th className="num">#</th>
@@ -152,14 +165,18 @@ export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismat
                   </thead>
                   <tbody>
                     {visible.map((r) => {
-                      const canTake = changeable.some((c) => c.key === r.key)
                       const nameDiffers = r.project && r.device && r.project.name !== r.device.name
                       const labelDiffers = r.project && r.device && r.project.label !== r.device.label
                       return (
                         <tr key={r.key} className={`status-${r.status}`}>
                           <td className="check">
-                            {canTake && (
-                              <input type="checkbox" aria-label={`Use device name for ${r.label}`} checked={selected.has(r.key)} onChange={() => toggle(r.key)} />
+                            {r.device && (
+                              <input
+                                type="checkbox"
+                                aria-label={`Select ${r.side === 'in' ? 'input' : 'output'} ${r.label}`}
+                                checked={selected.has(r.key)}
+                                onChange={() => toggle(r.key)}
+                              />
                             )}
                           </td>
                           <td className="num figures">
@@ -211,11 +228,18 @@ export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismat
                     `Send selected to ${kind} (${toSend.length})`
                   )}
                 </button>
-                {notSent > 0 && (
+                {blankSelected > 0 && (
                   <span className="muted small compare-note">
-                    {notSent} selected {notSent === 1 ? "port isn't" : "ports aren't"} set in the project, so the {kind} keeps {notSent === 1 ? 'its name' : 'their names'}.
+                    {blankSelected} selected {blankSelected === 1 ? 'port is' : 'ports are'} blank in the project, so the {kind} keeps{' '}
+                    {blankSelected === 1 ? `its ${unit}` : `their ${unit}s`}.
                   </span>
                 )}
+              </div>
+              <div className="compare-actions">
+                <span className="compare-direction">Factory → {kind}</span>
+                <button type="button" className="danger ghost" disabled={sending || resetCount === 0} onClick={onReset}>
+                  Set all to default ({resetCount})
+                </button>
               </div>
             </footer>
           </>

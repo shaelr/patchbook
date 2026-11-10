@@ -21,6 +21,7 @@ import {
   ipIssues,
   applyAtemReading,
   atemWritePlan,
+  atemFactoryPlan,
   changedPortCount,
   atemFromReading,
   compareAtem,
@@ -164,6 +165,18 @@ export function AtemTab({ data, update }: { data: ProjectData; update: ProjectUp
           sending={sender.sending}
           sendable={new Set(device.reading ? atemWritePlan(atem, device.reading, 'all').ports.map((p) => `${p.kind}:${p.n}`) : [])}
           onSend={(keys) => device.state?.status === 'done' && sender.send(device.state.ip, atemWritePlan(atem, device.state.reading, keys))}
+          resetCount={device.reading ? atemFactoryPlan(device.reading).ports.length : 0}
+          onReset={() => {
+            if (device.state?.status !== 'done') return
+            const plan = atemFactoryPlan(device.state.reading)
+            const n = plan.ports.length
+            sender.send(device.state.ip, plan, {
+              title: 'Set all names to default?',
+              message: `${n} input${n === 1 ? '' : 's'} and output${n === 1 ? '' : 's'} on the ATEM at ${device.state.ip} go back to their factory names (Camera 1, Output 1…) straight away. The project isn't changed.`,
+              confirmLabel: 'Set to default',
+              done: `Set ${n} name${n === 1 ? '' : 's'} to default on the ATEM`,
+            })
+          }}
           onApply={(keys, adoptModel) => {
             const reading = device.reading!
             const after = applyAtemReading(atem, reading, keys, adoptModel)
