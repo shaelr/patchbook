@@ -31,6 +31,14 @@ export function upgradeProjectData(data: ProjectData): ProjectData {
     const renamed = RENAMED_RANGE_LABELS[range.id]
     if (renamed && range.label === renamed[0]) range.label = renamed[1]
   }
+  // Videohub defaults were "Input 7"; the hub's own are "Input 07".
+  if (data.videohub) {
+    for (const side of ['in', 'out'] as const) {
+      for (const p of side === 'in' ? data.videohub.inputs : data.videohub.outputs) {
+        if (p.label === legacyVideohubDefaultName(side, p.n)) p.label = videohubDefaultName(side, p.n)
+      }
+    }
+  }
   return data
 }
 
@@ -127,9 +135,13 @@ export function atemDefaultName(model: string, kind: AtemPortKind, n: number): s
   return `${findAtemModel(model)?.outputPrefix ?? 'Output'} ${n}`
 }
 
+/** A Videohub's factory label: two-digit numbers, "Input 07" / "Output 12" (seen on a Videohub 40x40 12G). */
 export function videohubDefaultName(side: 'in' | 'out', n: number): string {
-  return `${side === 'in' ? 'Input' : 'Output'} ${n}`
+  return `${side === 'in' ? 'Input' : 'Output'} ${String(n).padStart(2, '0')}`
 }
+
+/** What Patchbook 0.3.0 and earlier used as the default ("Input 7"); upgraded on load. */
+const legacyVideohubDefaultName = (side: 'in' | 'out', n: number) => `${side === 'in' ? 'Input' : 'Output'} ${n}`
 
 /** True when a port has no name of its own: empty, or still the device's default name and auto label. */
 export function atemPortIsDefault(model: string, p: AtemInput | AtemOutput): boolean {
@@ -137,7 +149,7 @@ export function atemPortIsDefault(model: string, p: AtemInput | AtemOutput): boo
 }
 
 export function videohubPortIsDefault(side: 'in' | 'out', p: VideohubPort): boolean {
-  return p.label.trim() === '' || p.label === videohubDefaultName(side, p.n)
+  return p.label.trim() === '' || p.label === videohubDefaultName(side, p.n) || p.label === legacyVideohubDefaultName(side, p.n)
 }
 
 /**

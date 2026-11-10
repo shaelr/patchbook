@@ -211,7 +211,7 @@ export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismat
               <div className="compare-actions">
                 <span className="compare-direction">Device → Project</span>
                 <button type="button" disabled={sending || (selected.size === 0 && !willAdopt)} onClick={() => onApply(selected, willAdopt)}>
-                  Use device names for selected ({selected.size})
+                  Use device names for selected
                 </button>
                 <button type="button" disabled={sending || (changeable.length === 0 && !willAdopt)} onClick={() => onApply('all', willAdopt)}>
                   Use all device names
@@ -225,7 +225,7 @@ export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismat
                       <span className="spinner" aria-hidden /> Sending…
                     </>
                   ) : (
-                    `Send selected to ${kind} (${toSend.length})`
+                    `Send selected to ${kind}`
                   )}
                 </button>
                 {blankSelected > 0 && (
@@ -238,7 +238,7 @@ export function CompareView<R>({ kind, state, rows, factoryDefaults, modelMismat
               <div className="compare-actions">
                 <span className="compare-direction">Factory → {kind}</span>
                 <button type="button" className="danger ghost" disabled={sending || resetCount === 0} onClick={onReset}>
-                  Set all to default ({resetCount})
+                  Set all to default
                 </button>
               </div>
             </footer>

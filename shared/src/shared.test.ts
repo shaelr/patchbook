@@ -6,6 +6,7 @@ import {
   autoShortName,
   buildAtem,
   buildVideohub,
+  upgradeProjectData,
   atemPortIsDefault,
   clearAtemPorts,
   resetAtemPorts,
@@ -116,6 +117,17 @@ describe('IP ranges', () => {
 })
 
 describe('layouts', () => {
+  test('older Videohub defaults ("Input 7") become the hub\'s own ("Input 07") on load', () => {
+    const data = newProjectData('Test')
+    data.videohub = buildVideohub('vh-10x10-12g', null, null)
+    data.videohub.inputs[6]!.label = 'Input 7'
+    data.videohub.inputs[7]!.label = 'Graphics'
+    data.videohub.outputs[9]!.label = 'Output 10'
+    const next = upgradeProjectData(data)
+    assert.equal(next.videohub!.inputs[6]!.label, 'Input 07')
+    assert.equal(next.videohub!.inputs[7]!.label, 'Graphics')
+    assert.equal(next.videohub!.outputs[9]!.label, 'Output 10')
+  })
   test('every ATEM model builds a layout with the catalog counts', () => {
     for (const model of ATEM_MODELS) {
       const atem = buildAtem(model.id, null, null)
@@ -144,7 +156,7 @@ describe('layouts', () => {
     assert.equal(constellation.outputs.at(-1)!.long, 'Output 12')
     assert.equal(buildAtem('tvs-hd', null, null).outputs[0]!.long, 'Aux 1')
     const hub = buildVideohub('vh-10x10-12g', null, null)
-    assert.equal(hub.inputs[0]!.label, 'Input 1')
+    assert.equal(hub.inputs[0]!.label, 'Input 01', 'two digits, like the hub')
     assert.equal(hub.outputs[9]!.label, 'Output 10')
   })
   test('changing model renames ports still on defaults, keeps real names', () => {

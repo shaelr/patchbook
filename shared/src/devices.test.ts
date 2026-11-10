@@ -122,8 +122,8 @@ describe('compare with device', () => {
       modelName: 'Blackmagic Videohub 10x10 12G',
       model: 'vh-10x10-12g',
       counts: { inputs: 10, outputs: 10 },
-      inputs: Array.from({ length: 10 }, (_, i) => ({ n: i + 1, label: i === 0 ? 'Cam 1 ISO' : `Input ${i + 1}` })),
-      outputs: Array.from({ length: 10 }, (_, i) => ({ n: i + 1, label: `Output ${i + 1}` })),
+      inputs: Array.from({ length: 10 }, (_, i) => ({ n: i + 1, label: i === 0 ? 'Cam 1 ISO' : `Input ${String(i + 1).padStart(2, '0')}` })),
+      outputs: Array.from({ length: 10 }, (_, i) => ({ n: i + 1, label: `Output ${String(i + 1).padStart(2, '0')}` })),
     }
     const project = buildVideohub('vh-10x10-12g', null, null)
     const counts = diffCounts(compareVideohub(project, reading))
@@ -167,7 +167,7 @@ describe('send to device: write plan', () => {
 
     const hub = buildVideohub('vh-10x10-12g', null, null)
     const reading: VideohubReading = { modelName: 'X', model: 'vh-10x10-12g', counts: { inputs: 10, outputs: 10 }, inputs: hub.inputs.map((p) => ({ ...p, label: p.n === 1 ? 'Cam 1 ISO' : p.label })), outputs: hub.outputs }
-    assert.deepEqual(videohubWritePlan(hub, reading, 'all').ports, [{ side: 'in', n: 1, label: 'Input 1' }])
+    assert.deepEqual(videohubWritePlan(hub, reading, 'all').ports, [{ side: 'in', n: 1, label: 'Input 01' }])
     hub.inputs[0]!.label = ''
     assert.deepEqual(videohubWritePlan(hub, reading, 'all').ports, [], 'blank: "Cam 1 ISO" stays')
   })
@@ -187,7 +187,7 @@ describe('send to device: write plan', () => {
     const hub = buildVideohub('vh-10x10-12g', null, null)
     const reading: VideohubReading = { modelName: 'X', model: 'vh-10x10-12g', counts: { inputs: 10, outputs: 10 }, inputs: hub.inputs.map((p) => ({ ...p, label: p.n === 1 ? 'Cam 1 ISO' : p.label })), outputs: hub.outputs }
     const hubPlan = videohubFactoryPlan(reading)
-    assert.deepEqual(hubPlan.ports, [{ side: 'in', n: 1, label: 'Input 1' }])
+    assert.deepEqual(hubPlan.ports, [{ side: 'in', n: 1, label: 'Input 01' }])
     assert.deepEqual(hubPlan.undo, [{ side: 'in', n: 1, label: 'Cam 1 ISO' }])
   })
 
@@ -204,6 +204,6 @@ describe('send to device: write plan', () => {
     const reading: VideohubReading = { modelName: 'X', model: 'vh-10x10-12g', counts: { inputs: 10, outputs: 10 }, inputs: [...project.inputs], outputs: structuredClone(buildVideohub('vh-10x10-12g', null, null).outputs) }
     const plan = videohubWritePlan(project, reading, 'all')
     assert.deepEqual(plan.ports, [{ side: 'out', n: 3, label: 'Confidence' }])
-    assert.deepEqual(plan.undo, [{ side: 'out', n: 3, label: 'Output 3' }])
+    assert.deepEqual(plan.undo, [{ side: 'out', n: 3, label: 'Output 03' }])
   })
 })
