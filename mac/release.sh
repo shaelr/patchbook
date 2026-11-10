@@ -12,7 +12,8 @@ RES="$APP/Contents/Resources"
 STAGE="$RES/patchbook"
 CACHE="$ROOT/mac/build/node-cache"
 VERSION="$(node -p "require('$ROOT/package.json').version")"
-NODE_VERSION="$(node -v)"
+# The Node to bundle: this Mac's, unless NODE_VERSION (e.g. v26.13.0) names another official build.
+NODE_VERSION="${NODE_VERSION:-$(node -v)}"
 
 echo "Building the web app…"
 (cd "$ROOT" && npm run build --silent)
